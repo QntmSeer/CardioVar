@@ -1,0 +1,6 @@
+alphagenome
+numpy==1.24.4
+matplotlib
+seaborn
+pandas
+pyensembl
