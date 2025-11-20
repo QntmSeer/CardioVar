@@ -10,11 +10,25 @@ app = FastAPI(title="CardioVar API", version="1.0")
 
 # --- Models ---
 class VariantRequest(BaseModel):
+    assembly: str = "GRCh38"  # Genome build
     chrom: str
     pos: int
     ref: str
     alt: str
     window_size: Optional[int] = 100
+    
+    class Config:
+        # Validate assembly values
+        schema_extra = {
+            "example": {
+                "assembly": "GRCh38",
+                "chrom": "chr22",
+                "pos": 36191400,
+                "ref": "A",
+                "alt": "C",
+                "window_size": 100
+            }
+        }
 
 class BatchRequest(BaseModel):
     variants: List[VariantRequest]
@@ -38,8 +52,11 @@ def get_variant_impact(req: VariantRequest):
     Compute impact for a single variant.
     """
     try:
-        result = compute_variant_impact(req.chrom, req.pos, req.ref, req.alt, req.window_size)
+        result = compute_variant_impact(req.chrom, req.pos, req.ref, req.alt, req.assembly, req.window_size)
         return result
+    except ValueError as e:
+        # Return 400 for validation errors (e.g., unsupported assembly)
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

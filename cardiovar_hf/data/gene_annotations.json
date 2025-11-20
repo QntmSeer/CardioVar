@@ -1,0 +1,208 @@
+[
+    {
+        "symbol": "MYH9",
+        "name": "Myosin Heavy Chain 9",
+        "pathways": [
+            "Cytoskeleton remodeling",
+            "Platelet activation",
+            "Integrin signaling"
+        ],
+        "disease_associations": [
+            "May-Hegglin Anomaly",
+            "Fechtner Syndrome",
+            "Sebastian Syndrome"
+        ],
+        "links": {
+            "Ensembl": "https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=ENSG00000100345",
+            "UniProt": "https://www.uniprot.org/uniprot/P35579"
+        },
+        "expression": [
+            {
+                "tissue": "Heart LV",
+                "tpm": 45.2
+            },
+            {
+                "tissue": "Heart RA",
+                "tpm": 38.7
+            },
+            {
+                "tissue": "Aorta",
+                "tpm": 32.1
+            },
+            {
+                "tissue": "Coronary Artery",
+                "tpm": 28.5
+            },
+            {
+                "tissue": "Liver",
+                "tpm": 8.3
+            },
+            {
+                "tissue": "Brain",
+                "tpm": 12.1
+            },
+            {
+                "tissue": "Kidney",
+                "tpm": 15.4
+            },
+            {
+                "tissue": "Skeletal Muscle",
+                "tpm": 52.8
+            }
+        ],
+        "protein_domains": [
+            {
+                "name": "Motor domain",
+                "start": 1,
+                "end": 780
+            },
+            {
+                "name": "IQ motif",
+                "start": 781,
+                "end": 850
+            },
+            {
+                "name": "Coiled-coil",
+                "start": 851,
+                "end": 1960
+            }
+        ],
+        "protein_length": 1960
+    },
+    {
+        "symbol": "APOL1",
+        "name": "Apolipoprotein L1",
+        "pathways": [
+            "Lipid metabolism",
+            "Innate immunity"
+        ],
+        "disease_associations": [
+            "Chronic Kidney Disease",
+            "Focal Segmental Glomerulosclerosis"
+        ],
+        "links": {
+            "Ensembl": "https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=ENSG00000100342",
+            "UniProt": "https://www.uniprot.org/uniprot/O14791"
+        },
+        "expression": [
+            {
+                "tissue": "Heart LV",
+                "tpm": 12.3
+            },
+            {
+                "tissue": "Heart RA",
+                "tpm": 10.8
+            },
+            {
+                "tissue": "Aorta",
+                "tpm": 15.2
+            },
+            {
+                "tissue": "Coronary Artery",
+                "tpm": 14.1
+            },
+            {
+                "tissue": "Liver",
+                "tpm": 85.4
+            },
+            {
+                "tissue": "Brain",
+                "tpm": 3.2
+            },
+            {
+                "tissue": "Kidney",
+                "tpm": 92.7
+            },
+            {
+                "tissue": "Skeletal Muscle",
+                "tpm": 6.5
+            }
+        ],
+        "protein_domains": [
+            {
+                "name": "BH3 domain",
+                "start": 1,
+                "end": 120
+            },
+            {
+                "name": "Pore-forming",
+                "start": 121,
+                "end": 398
+            }
+        ],
+        "protein_length": 398
+    },
+    {
+        "symbol": "PCSK9",
+        "name": "Proprotein Convertase Subtilisin/Kexin Type 9",
+        "pathways": [
+            "Cholesterol metabolism",
+            "LDL receptor regulation"
+        ],
+        "disease_associations": [
+            "Hypercholesterolemia",
+            "Coronary Artery Disease"
+        ],
+        "links": {
+            "Ensembl": "https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=ENSG00000169174",
+            "UniProt": "https://www.uniprot.org/uniprot/Q8NBP7"
+        },
+        "expression": [
+            {
+                "tissue": "Heart LV",
+                "tpm": 8.5
+            },
+            {
+                "tissue": "Heart RA",
+                "tpm": 7.2
+            },
+            {
+                "tissue": "Aorta",
+                "tpm": 18.3
+            },
+            {
+                "tissue": "Coronary Artery",
+                "tpm": 22.1
+            },
+            {
+                "tissue": "Liver",
+                "tpm": 125.8
+            },
+            {
+                "tissue": "Brain",
+                "tpm": 15.4
+            },
+            {
+                "tissue": "Kidney",
+                "tpm": 18.9
+            },
+            {
+                "tissue": "Skeletal Muscle",
+                "tpm": 3.2
+            }
+        ],
+        "protein_domains": [
+            {
+                "name": "Signal peptide",
+                "start": 1,
+                "end": 30
+            },
+            {
+                "name": "Prodomain",
+                "start": 31,
+                "end": 152
+            },
+            {
+                "name": "Catalytic domain",
+                "start": 153,
+                "end": 449
+            },
+            {
+                "name": "C-terminal",
+                "start": 450,
+                "end": 692
+            }
+        ],
+        "protein_length": 692
+    }
+]

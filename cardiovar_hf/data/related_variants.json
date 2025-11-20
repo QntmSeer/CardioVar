@@ -1,0 +1,24 @@
+{
+    "chr22:36191400:A:C": [
+        {
+            "source": "ClinVar",
+            "trait": "May-Hegglin Anomaly",
+            "significance": "Pathogenic",
+            "id": "RCV000001234"
+        },
+        {
+            "source": "GWAS Catalog",
+            "trait": "Platelet count",
+            "p_value": "2.4e-22",
+            "study": "Gieger et al. 2011"
+        }
+    ],
+    "chr1:12345678:G:T": [
+        {
+            "source": "ClinVar",
+            "trait": "Hypercholesterolemia",
+            "significance": "Likely Pathogenic",
+            "id": "RCV000005678"
+        }
+    ]
+}

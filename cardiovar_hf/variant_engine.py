@@ -1,27 +1,10 @@
 import numpy as np
 
-def compute_variant_impact(chrom, pos, ref, alt, assembly="GRCh38", window_size=100):
+def compute_variant_impact(chrom, pos, ref, alt, window_size=100):
     """
     Core logic for variant impact prediction.
     Returns synthetic but realistic data structure.
-    
-    Args:
-        chrom: Chromosome (e.g., "chr22")
-        pos: Position
-        ref: Reference allele
-        alt: Alternate allele
-        assembly: Genome build ("GRCh38" or "GRCh37")
-        window_size: Window size around variant
-    
-    Raises:
-        ValueError: If assembly is not GRCh38
     """
-    # Validate assembly
-    if assembly not in ["GRCh38", "GRCh37"]:
-        raise ValueError(f"Invalid assembly: {assembly}. Must be 'GRCh38' or 'GRCh37'")
-    
-    if assembly == "GRCh37":
-        raise ValueError("Currently only GRCh38 coordinates are supported in this demo. Please switch to GRCh38.")
     # 1. Generate Curve Data
     x = np.arange(-window_size, window_size + 1)
     np.random.seed(pos % 10000) # Deterministic seed based on pos

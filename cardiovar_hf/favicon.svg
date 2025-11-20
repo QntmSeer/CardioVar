@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Purple background circle -->
+  <circle cx="50" cy="50" r="48" fill="#6B46C1"/>
+  <!-- Heart shape -->
+  <path d="M50 85 C20 60, 10 40, 10 28 C10 15, 20 5, 30 5 C40 5, 45 10, 50 20 C55 10, 60 5, 70 5 C80 5, 90 15, 90 28 C90 40, 80 60, 50 85 Z" 
+        fill="none" stroke="#FFF" stroke-width="3"/>
+  <!-- DNA helix -->
+  <path d="M35 30 Q40 35, 35 40 Q30 45, 35 50 Q40 55, 35 60" 
+        fill="none" stroke="#FFF" stroke-width="2"/>
+  <path d="M65 30 Q60 35, 65 40 Q70 45, 65 50 Q60 55, 65 60" 
+        fill="none" stroke="#FFF" stroke-width="2"/>
+  <line x1="35" y1="35" x2="65" y2="35" stroke="#FFF" stroke-width="1.5"/>
+  <line x1="35" y1="45" x2="65" y2="45" stroke="#FFF" stroke-width="1.5"/>
+  <line x1="35" y1="55" x2="65" y2="55" stroke="#FFF" stroke-width="1.5"/>
+</svg>
