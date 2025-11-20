@@ -1,0 +1,14 @@
+alphagenome
+numpy==1.24.4
+matplotlib
+seaborn
+pandas
+pyensembl
+python-dotenv
+jupyter
+streamlit
+fastapi
+uvicorn
+python-multipart
+requests
+pytest
