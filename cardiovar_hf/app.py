@@ -106,6 +106,18 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
     st.header("Variant Configuration")
+    
+    # Genome Build Selector
+    assembly = st.selectbox(
+        "Genome Build",
+        ["GRCh38 / hg38", "GRCh37 / hg19"],
+        index=0,
+        help="All positions are interpreted in the selected genome build"
+    )
+    # Extract just the assembly code
+    assembly_code = "GRCh38" if "38" in assembly else "GRCh37"
+    st.caption("ℹ️ All positions are interpreted in the selected genome build")
+    
     chrom = st.selectbox("Chromosome", ["chr22", "chr1", "chr2", "chr3"])
     position = st.number_input("Position", min_value=0, value=36191400, step=100)
     col1, col2 = st.columns(2)
@@ -142,8 +154,8 @@ tab1, tab2, tab3, tab4 = st.tabs(["📊 Variant Explorer", "🧬 Gene Annotation
 if run_btn:
     try:
         with st.spinner("Running Variant Analysis..."):
-            # Call variant engine directly
-            data = compute_variant_impact(chrom, position, ref, alt)
+            # Call variant engine directly with assembly
+            data = compute_variant_impact(chrom, position, ref, alt, assembly_code)
             
         metrics = data["metrics"]
         
@@ -294,6 +306,9 @@ if run_btn:
             else:
                 st.info("No known ClinVar or GWAS associations found for this specific variant.")
                 
+    except ValueError as e:
+        # Handle assembly validation errors
+        st.warning(f"⚠️ {str(e)}")
     except Exception as e:
         st.error(f"An error occurred: {e}")
 

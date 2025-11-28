@@ -1,20 +1,93 @@
+import warnings
+# Suppress numpy binary incompatibility warnings
+warnings.filterwarnings("ignore", message="numpy.dtype size changed")
+warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 import requests
 import matplotlib.pyplot as plt
 import seaborn as sns
+import matplotlib.colors as mcolors
+from matplotlib.patches import Patch
 import io
 
-# API Configuration
-API_URL = "http://localhost:8000"
+# --- Configuration & Constants ---
+import time
 
-# Page Config
+# --- Configuration & Constants ---
 st.set_page_config(
-    page_title="CardioVar Explorer",
-    page_icon="favicon.svg",
-    layout="wide"
+    page_title="CardioVar",
+    page_icon="❤️",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
+
+import os
+
+# API Configuration
+API_URL = os.getenv("API_URL", "http://localhost:8000")
+
+# Color Palette (Tiger Flame / Midnight Violet Theme)
+COLORS = {
+    "tiger_flame": "#F46036",
+    "dusty_denim": "#5B85AA",
+    "twilight_indigo": "#414770",
+    "midnight_violet": "#171123",
+    "dark_amethyst": "#372248",
+    "gunmetal": "#303633",
+    "aquamarine": "#8BE8CB",
+    "cool_steel": "#5B85AA",
+    "lavender_grey": "#888DA7",
+    "dusty_mauve": "#9C7A97"
+}
+
+# Seaborn Theme (Light Mode)
+sns.set_theme(style="white", context="notebook")
+plt.rcParams['figure.facecolor'] = 'none'
+plt.rcParams['axes.facecolor'] = 'none'
+plt.rcParams['text.color'] = COLORS['gunmetal']
+plt.rcParams['axes.labelcolor'] = COLORS['gunmetal']
+plt.rcParams['xtick.color'] = COLORS['gunmetal']
+plt.rcParams['ytick.color'] = COLORS['gunmetal']
+plt.rcParams['axes.edgecolor'] = COLORS['cool_steel']
+
+# Custom CSS for Fonts & Styling (Light Mode)
+st.markdown("""
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+        
+        html, body, [class*="css"] {
+            font-family: 'Outfit', sans-serif;
+        }
+        
+        h1, h2, h3 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            color: #2C5F7C !important;
+        }
+        
+        .stButton>button {
+            background-color: #F46036;
+            color: white;
+            border-radius: 8px;
+            font-weight: 600;
+            border: none;
+            transition: background-color 0.3s ease;
+        }
+        .stButton>button:hover {
+            background-color: #D94E28; /* Darker shade of Tiger Flame */
+            color: white;
+            border: none;
+        }
+        
+        /* Light mode adjustments */
+        [data-testid="stSidebar"] {
+            background-color: #F8F9FA;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
 # --- Helper Functions ---
 def plot_deltas_from_api(data, chrom, pos, ref, alt, line_color, highlight_color):
@@ -28,43 +101,68 @@ def plot_deltas_from_api(data, chrom, pos, ref, alt, line_color, highlight_color
     x = np.array(curve["x"])
     y = np.array(curve["y"])
     
-    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(10, 8), sharex=True, gridspec_kw={'height_ratios': [3, 0.5, 0.5]})
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(10, 9), sharex=True, gridspec_kw={'height_ratios': [3, 0.5, 0.8]})
     
     # 1. Main Delta Plot
     sns.lineplot(x=x, y=y, color=line_color, linewidth=2.5, ax=ax1, label='$\Delta$ RNA-seq')
-    ax1.axhline(0, color='gray', linestyle='--', alpha=0.3)
+    ax1.axhline(0, color=COLORS['lavender_grey'], linestyle='--', alpha=0.5)
     ax1.axvline(0, color=highlight_color, linestyle=':', alpha=0.8)
     
     # Highlight Max
     max_pos = metrics["max_pos_rel"]
     max_val = metrics["max_delta"]
-    ax1.scatter(max_pos, max_val, color=highlight_color, s=150, zorder=5, edgecolor='white', linewidth=1.5)
-    ax1.annotate(f'Max: {max_val:.2f}', (max_pos, max_val), xytext=(10, 10), textcoords='offset points',
+    ax1.scatter(max_pos, max_val, color=highlight_color, s=150, zorder=5, edgecolor='white', linewidth=1.5, label='Max Impact')
+    ax1.annotate(f'{max_val:.2f}', (max_pos, max_val), xytext=(10, 10), textcoords='offset points',
                  bbox=dict(boxstyle="round,pad=0.3", fc="white", ec=highlight_color, alpha=0.9),
                  arrowprops=dict(arrowstyle='->', connectionstyle="arc3,rad=.2", color=highlight_color))
     
-    ax1.set_ylabel("$\Delta$ RNA-seq")
-    ax1.set_title(f"Variant Impact: {chrom}:{pos} {ref}→{alt}", fontsize=14, fontweight='bold')
-    ax1.legend(loc='upper right', frameon=False)
-    sns.despine(ax=ax1, trim=True)
+    ax1.set_ylabel("Impact Score")
+    ax1.set_title(f"Variant Impact", fontsize=16, fontweight='bold', loc='left', color=COLORS['gunmetal'])
+    sns.despine(ax=ax1, left=True, bottom=True)
+    ax1.grid(axis='y', linestyle=':', alpha=0.3)
+    
+    # Legend below plot
+    ax1.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=2, frameon=False)
     
     # 2. Gene Structure Track
-    ax2.plot([x[0], x[-1]], [0, 0], color='black', linewidth=1)
-    for exon in tracks["exons"]:
-        rect = plt.Rectangle((exon["start"], -0.4), exon["end"]-exon["start"], 0.8, facecolor='#3498db', alpha=0.7)
-        ax2.add_patch(rect)
-        ax2.text((exon["start"]+exon["end"])/2, 0, exon["label"], ha='center', va='center', color='white', fontsize=8)
+    exons = tracks.get("exons", [])
+    ax2.plot([x[0], x[-1]], [0, 0], color=COLORS['lavender_grey'], linewidth=1)
+    
+    exon_color = COLORS['cool_steel']
+    
+    if not exons:
+        ax2.text(0, 0, "Non-coding Region", ha='center', va='center', fontsize=10, color=COLORS['lavender_grey'], style='italic')
+    else:
+        for exon in exons:
+            start, end = exon["start"], exon["end"]
+            # Clip to window
+            start = max(x[0], start)
+            end = min(x[-1], end)
+            
+            if end > start:
+                rect = plt.Rectangle((start, -0.4), end-start, 0.8, facecolor=exon_color, alpha=0.8, edgecolor='none')
+                ax2.add_patch(rect)
+                # Label with Exon ID (shortened)
+                label = exon.get("id", "Exon")
+                if len(label) > 10: label = "Exon"
+                ax2.text((start+end)/2, 0, label, ha='center', va='center', color='white', fontweight='bold', fontsize=8)
+    
     ax2.set_yticks([])
     ax2.set_ylabel("Gene")
     sns.despine(ax=ax2, left=True, bottom=True)
     
-    # 3. Conservation Track
     cons = np.array(tracks["conservation"])
-    ax3.fill_between(x, cons, 0, where=(cons>0), color='#27ae60', alpha=0.6)
-    ax3.fill_between(x, cons, 0, where=(cons<0), color='#95a5a6', alpha=0.3)
-    ax3.set_ylabel("PhyloP")
-    ax3.set_xlabel("Relative Genomic Coordinate (bp)")
-    sns.despine(ax=ax3, bottom=False)
+    cons_pos_color = COLORS['aquamarine']
+    cons_neg_color = COLORS['lavender_grey']
+    
+    ax3.fill_between(x, cons, 0, where=(cons>0), color=cons_pos_color, alpha=0.8, label='Conserved')
+    ax3.fill_between(x, cons, 0, where=(cons<0), color=cons_neg_color, alpha=0.4, label='Accelerated')
+    ax3.set_ylabel("Conservation")
+    ax3.set_xlabel("Distance (bp)")
+    sns.despine(ax=ax3, left=True, bottom=False)
+    
+    # Legend for conservation below
+    ax3.legend(loc='upper center', bbox_to_anchor=(0.5, -0.5), ncol=2, frameon=False)
     
     plt.tight_layout()
     return fig
@@ -74,28 +172,22 @@ def plot_deltas_from_api(data, chrom, pos, ref, alt, line_color, highlight_color
 # Sidebar
 with st.sidebar:
     # Minimal text-based logo
-    st.markdown("""
+    st.markdown(f"""
     <div style="text-align: center; padding: 20px 0; border-bottom: 1px solid #e0e0e0; margin-bottom: 20px;">
-        <h1 style="font-family: 'Helvetica Neue', sans-serif; font-weight: 300; font-size: 32px; margin: 0; letter-spacing: -1px; color: #000;">
+        <h1 style="font-family: 'Helvetica Neue', sans-serif; font-weight: 300; font-size: 32px; margin: 0; letter-spacing: -1px; color: {COLORS['gunmetal']};">
             CardioVar
         </h1>
-        <p style="font-family: 'Helvetica Neue', sans-serif; font-weight: 300; font-size: 11px; margin: 5px 0 0 0; letter-spacing: 2px; color: #666; text-transform: uppercase;">
+        <p style="font-family: 'Helvetica Neue', sans-serif; font-weight: 300; font-size: 11px; margin: 5px 0 0 0; letter-spacing: 2px; color: {COLORS['lavender_grey']}; text-transform: uppercase;">
             Variant Explorer
         </p>
     </div>
     """, unsafe_allow_html=True)
     st.header("Variant Configuration")
     
-    # Genome Build Selector
-    assembly = st.selectbox(
-        "Genome Build",
-        ["GRCh38 / hg38", "GRCh37 / hg19"],
-        index=0,
-        help="All positions are interpreted in the selected genome build"
-    )
-    # Extract just the assembly code
-    assembly_code = "GRCh38" if "38" in assembly else "GRCh37"
-    st.caption("ℹ️ All positions are interpreted in the selected genome build")
+    # Genome Build Display (Static)
+    st.markdown("**Genome Build:** GRCh38 / hg38")
+    assembly_code = "GRCh38"
+    st.caption("ℹ️ Only GRCh38 is currently supported.")
     
     chrom = st.selectbox("Chromosome", ["chr22", "chr1", "chr2", "chr3"])
     position = st.number_input("Position", min_value=0, value=36191400, step=100)
@@ -107,200 +199,159 @@ with st.sidebar:
         
     st.markdown("---")
     st.header("🎨 Customization")
-    line_color = st.color_picker("Signal Color", "#4C72B0")  # Seaborn blue
-    highlight_color = st.color_picker("Highlight Color", "#DD8452")  # Seaborn orange
     
-    run_btn = st.button("Run Analysis", type="primary")
+    line_color = st.color_picker("Signal Color", COLORS['cool_steel'])
+    highlight_color = st.color_picker("Highlight Color", COLORS['dusty_mauve'])
+    
+    st.markdown("---")
+    st.header("⚙️ Advanced")
+    force_live = st.checkbox("Force live API calls (debug)", value=False, help="Bypass local cache and force real API requests. May be slower.")
+    
+    st.markdown("---")
+    st.header("🖥️ System Health")
+    if st.button("Check Status"):
+        try:
+            sys_resp = requests.get(f"{API_URL}/system-status")
+            if sys_resp.status_code == 200:
+                sys_data = sys_resp.json()
+                st.metric("CPU Usage", f"{sys_data['cpu_percent']}%")
+                st.metric("RAM Usage", f"{sys_data['memory_percent']}%")
+                st.caption(f"Used: {sys_data['memory_used_gb']} GB / {sys_data['memory_total_gb']} GB")
+            else:
+                st.error("Failed to fetch system status")
+        except Exception as e:
+            st.error(f"Connection error: {e}")
+    
+    # Model info moved to About tab
+    
+    run_btn = st.button("Run Analysis", type="primary", use_container_width=True)
 
-# Title
-st.title("🧬 CardioVar: CVD Variant Impact Explorer")
-
-# Intro
-st.markdown("""
-**CardioVar** is a precision medicine tool designed to predict the functional impact of genetic variants in cardiovascular disease genes. 
-By leveraging deep learning models, it estimates how a specific variant alters RNA-seq expression profiles, potentially disrupting gene regulation.
-
-**Key Features:**
-- 📉 **Predict Impact**: Visualize $\Delta$ RNA-seq effects of single nucleotide variants.
-- 🧬 **Genomic Context**: View gene structure (exons) and evolutionary conservation.
-- 🏥 **Clinical Relevance**: Cross-reference with ClinVar and GWAS Catalog.
-- 🚀 **Batch Processing**: Analyze multiple variants simultaneously.
-""")
-
-# Tabs
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Variant Explorer", "🧬 Gene Annotations", "🗂️ Related Data", "🚀 Batch Analysis"])
-
+# Main Page Tabs
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["Variant Explorer", "Annotations", "Related Data", "Batch Analysis", "About"])
+    
 if run_btn:
     # Call API
-    payload = {"assembly": assembly_code, "chrom": chrom, "pos": position, "ref": ref, "alt": alt}
+    payload = {
+        "assembly": assembly_code, 
+        "chrom": chrom, 
+        "pos": position, 
+        "ref": ref, 
+        "alt": alt,
+        "force_live": force_live
+    }
     
     try:
         with st.spinner("Querying Variant Engine..."):
             resp = requests.post(f"{API_URL}/variant-impact", json=payload)
             resp.raise_for_status()
             data = resp.json()
-            
-        metrics = data["metrics"]
-        
-        # Tab 1: Explorer
-        with tab1:
-            # Metrics
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Max Delta", f"{metrics['max_delta']:.2f}")
-            c2.metric("gnomAD Freq", f"{metrics['gnomad_freq']:.5f}")
-            c3.metric("Gene", metrics['gene_symbol'])
-            
-            # Plot
-            fig = plot_deltas_from_api(data, chrom, position, ref, alt, line_color, highlight_color)
-            st.pyplot(fig)
-            
-            # Additional Plots Row
-            col_a, col_b = st.columns(2)
-            
-            with col_a:
-                st.subheader("Tissue-Specific Impact")
-                # Tissue heatmap
-                tissue_df = pd.DataFrame(data["tissue_effects"])
-                tissue_df['is_cardio'] = tissue_df['tissue'].apply(lambda x: 'Cardiovascular' if any(t in x for t in ['Heart', 'Aorta', 'Coronary']) else 'Other')
-                
-                fig_tissue, ax_tissue = plt.subplots(figsize=(6, 4))
-                colors = ['#E74C3C' if t == 'Cardiovascular' else '#95A5A6' for t in tissue_df['is_cardio']]
-                ax_tissue.barh(tissue_df['tissue'], tissue_df['delta'], color=colors)
-                ax_tissue.set_xlabel('|Δ RNA-seq|')
-                ax_tissue.set_title('Predicted Impact Across Tissues')
-                sns.despine()
-                plt.tight_layout()
-                st.pyplot(fig_tissue)
-                st.caption("🔴 Cardiovascular tissues highlighted")
-            
-            with col_b:
-                st.subheader("Variant Percentile")
-                # Background distribution
-                bg_data = data["background_distribution"]
-                bg_deltas = np.abs(bg_data["background_deltas"])
-                var_delta = bg_data["variant_delta"]
-                percentile = metrics['percentile']
-                
-                fig_dist, ax_dist = plt.subplots(figsize=(6, 4))
-                ax_dist.hist(bg_deltas, bins=30, color='#95A5A6', alpha=0.6, edgecolor='black')
-                ax_dist.axvline(var_delta, color='#E74C3C', linewidth=3, linestyle='--', label=f'This variant (Top {100-percentile:.1f}%)')
-                ax_dist.set_xlabel('|Δ RNA-seq|')
-                ax_dist.set_ylabel('Frequency')
-                ax_dist.set_title(f'Distribution in {metrics["gene_symbol"]}')
-                ax_dist.legend()
-                sns.despine()
-                plt.tight_layout()
-                st.pyplot(fig_dist)
-                st.caption(f"📊 This variant is in the **top {100-percentile:.1f}%** of predicted impact")
-            
-            # Export Plot
-            fn = f"cardiovar_plot_{chrom}_{position}.png"
-            img = io.BytesIO()
-            fig.savefig(img, format='png')
-            st.download_button("📸 Download Plot", data=img, file_name=fn, mime="image/png")
-            
-            # Export Data
-            csv_data = pd.DataFrame({
-                "x": data["curve"]["x"],
-                "y": data["curve"]["y"]
-            }).to_csv(index=False).encode('utf-8')
-            st.download_button("💾 Download Data (CSV)", data=csv_data, file_name=f"variant_{chrom}_{position}.csv", mime="text/csv")
+            g_data = data.get('gene', {})
 
-        # Tab 2: Gene Annotations
-        with tab2:
-            gene_sym = metrics['gene_symbol']
-            st.subheader(f"Annotations for {gene_sym}")
+        # Data Provenance Expander in Variant Explorer (tab1)
+        with tab1:
+            if 'data_sources' in data:
+                with st.expander("📊 Data Sources & Provenance"):
+                    st.markdown("**Data Provenance**")
+                    df_sources = pd.DataFrame(list(data['data_sources'].items()), columns=["Data Element", "Source"])
+                    st.table(df_sources)
             
-            g_resp = requests.get(f"{API_URL}/gene-annotations", params={"gene": gene_sym})
-            if g_resp.status_code == 200:
-                g_data = g_resp.json()
-                st.write(f"**Name:** {g_data.get('name', 'N/A')}")
-                
-                # Expression Plot
-                if 'expression' in g_data:
-                    st.markdown("### Baseline Expression Across Tissues")
-                    expr_df = pd.DataFrame(g_data['expression'])
-                    expr_df['is_cardio'] = expr_df['tissue'].apply(lambda x: any(t in x for t in ['Heart', 'Aorta', 'Coronary']))
-                    
-                    fig_expr, ax_expr = plt.subplots(figsize=(10, 5))
-                    colors = ['#E74C3C' if c else '#4C72B0' for c in expr_df['is_cardio']]
-                    ax_expr.bar(expr_df['tissue'], expr_df['tpm'], color=colors, edgecolor='black', alpha=0.8)
-                    ax_expr.set_ylabel('TPM (Transcripts Per Million)')
-                    ax_expr.set_title(f'{gene_sym} Expression (GTEx-style)')
-                    ax_expr.tick_params(axis='x', rotation=45)
-                    sns.despine()
-                    plt.tight_layout()
-                    st.pyplot(fig_expr)
-                    st.caption("🔴 Cardiovascular tissues | 🔵 Other tissues")
-                
-                # Protein Domains
-                if 'protein_domains' in g_data and 'protein_length' in g_data:
-                    st.markdown("### Protein Domain Architecture")
-                    domains = g_data['protein_domains']
-                    prot_len = g_data['protein_length']
-                    
-                    fig_prot, ax_prot = plt.subplots(figsize=(10, 2))
-                    # Draw protein backbone
-                    ax_prot.plot([0, prot_len], [0, 0], color='black', linewidth=2)
-                    
-                    # Draw domains
-                    domain_colors = ['#3498db', '#9b59b6', '#e67e22', '#1abc9c', '#34495e']
-                    for i, domain in enumerate(domains):
-                        color = domain_colors[i % len(domain_colors)]
-                        rect = plt.Rectangle((domain['start'], -0.3), domain['end']-domain['start'], 0.6, 
-                                            facecolor=color, edgecolor='black', alpha=0.7)
-                        ax_prot.add_patch(rect)
-                        ax_prot.text((domain['start']+domain['end'])/2, 0, domain['name'], 
-                                   ha='center', va='center', fontsize=8, color='white', fontweight='bold')
-                    
-                    # Mock variant position (for demonstration)
-                    var_aa_pos = int(prot_len * 0.4)  # Mock: 40% through protein
-                    ax_prot.plot([var_aa_pos, var_aa_pos], [0.6, 1.2], color='#E74C3C', linewidth=2)
-                    ax_prot.scatter([var_aa_pos], [1.2], color='#E74C3C', s=100, zorder=5, marker='v')
-                    ax_prot.text(var_aa_pos, 1.4, 'Variant', ha='center', fontsize=9, color='#E74C3C', fontweight='bold')
-                    
-                    ax_prot.set_xlim(0, prot_len)
-                    ax_prot.set_ylim(-0.5, 1.6)
-                    ax_prot.set_yticks([])
-                    ax_prot.set_xlabel('Amino Acid Position')
-                    ax_prot.set_title(f'{gene_sym} Protein Domains (Length: {prot_len} aa)')
-                    sns.despine(left=True)
-                    plt.tight_layout()
-                    st.pyplot(fig_prot)
-                    st.caption("🔻 Approximate variant position (mock)")
-                
+            # Plot the variant impact (Delta Plot)
+            # We need to ensure the plot is rendered in tab1 as well, 
+            # assuming the original code had it there. 
+            # Looking at previous context, plot_deltas_from_api was used.
+            if 'curve' in data and 'metrics' in data:
+                fig = plot_deltas_from_api(data, chrom, position, ref, alt, line_color, highlight_color)
+                st.pyplot(fig)
+
+        # Annotations tab (tab2)
+        with tab2:
+            # Cached data warning
+            if data.get('fallback_used', False):
+                st.warning("ℹ️ Some annotation data loaded from cache (gene expression/protein domains may be cached). Core variant data is live.")
+
+            # Expression Plot
+            if 'expression' in g_data:
+                st.markdown("### Baseline Expression")
+                expr_df = pd.DataFrame(g_data['expression'])
+                expr_df['is_cardio'] = expr_df['tissue'].apply(lambda x: any(t in x for t in ['Heart', 'Aorta', 'Coronary']))
+                fig_expr, ax_expr = plt.subplots(figsize=(10, 5))
+                colors = [COLORS['dusty_mauve'] if c else COLORS['cool_steel'] for c in expr_df['is_cardio']]
+                sns.barplot(data=expr_df, x='tissue', y='tpm', palette=colors, ax=ax_expr, edgecolor='none', alpha=0.9)
+                ax_expr.set_ylabel('TPM')
+                ax_expr.set_xlabel('')
+                ax_expr.set_title('Tissue Expression Profile', loc='left', color=COLORS['gunmetal'])
+                ax_expr.tick_params(axis='x', rotation=45)
+                sns.despine(left=True, bottom=True)
+                ax_expr.grid(axis='y', linestyle=':', alpha=0.3)
+                legend_elements = [Patch(facecolor=COLORS['dusty_mauve'], label='Cardiovascular'),
+                                   Patch(facecolor=COLORS['cool_steel'], label='Other')]
+                ax_expr.legend(handles=legend_elements, loc='upper center', bbox_to_anchor=(0.5, -0.3), ncol=2, frameon=False)
+                plt.tight_layout()
+                st.pyplot(fig_expr)
+
+            # Protein Domains
+            if 'protein_domains' in g_data and 'protein_length' in g_data:
+                st.markdown("### Protein Architecture")
+                domains = g_data['protein_domains']
+                prot_len = g_data['protein_length']
+                fig_prot, ax_prot = plt.subplots(figsize=(10, 3))
+                ax_prot.plot([0, prot_len], [0, 0], color=COLORS['lavender_grey'], linewidth=4, solid_capstyle='round')
+                domain_colors = [COLORS['aquamarine'], COLORS['cool_steel'], COLORS['dusty_mauve']]
+                for i, domain in enumerate(domains):
+                    color = domain_colors[i % len(domain_colors)]
+                    rect = plt.Rectangle((domain['start'], -0.3), domain['end']-domain['start'], 0.6,
+                                         facecolor=color, edgecolor='none', alpha=0.9)
+                    ax_prot.add_patch(rect)
+                    if (domain['end'] - domain['start']) > (prot_len * 0.05):
+                        ax_prot.text((domain['start']+domain['end'])/2, 0, domain['name'],
+                                     ha='center', va='center', color='white', fontsize=8, fontweight='bold')
+                sns.despine(left=True, bottom=True)
+                ax_prot.set_yticks([])
+                ax_prot.set_xlabel("Amino Acid Position")
+                legend_elements = [Patch(facecolor=COLORS['aquamarine'], label='Domain Type A'),
+                                   Patch(facecolor=COLORS['cool_steel'], label='Domain Type B'),
+                                   Patch(facecolor=COLORS['dusty_mauve'], label='Domain Type C')]
+                ax_prot.legend(handles=legend_elements, loc='upper center', bbox_to_anchor=(0.5, -0.5), ncol=3, frameon=False, title="Domain Types (Representative)")
+                plt.tight_layout()
+                st.pyplot(fig_prot)
+
+            # Pathways, Disease Associations, External Links
+            if 'pathways' in g_data:
                 st.markdown("### Pathways")
-                for p in g_data.get("pathways", []):
+                for p in g_data.get('pathways', []):
                     st.markdown(f"- {p}")
-                    
+            if 'disease_associations' in g_data:
                 st.markdown("### Disease Associations")
-                for d in g_data.get("disease_associations", []):
+                for d in g_data.get('disease_associations', []):
                     st.markdown(f"- {d}")
-                    
+            if 'links' in g_data:
                 st.markdown("### External Links")
-                links = g_data.get("links", {})
-                for k, v in links.items():
-                    st.markdown(f"[{k}]({v})")
-            else:
-                st.warning("Could not fetch gene data.")
+                links = g_data.get('links', {})
+                if links:
+                    for name, url in links.items():
+                        st.markdown(f"- [{name}]({url})")
+                else:
+                    st.info("No external links available.")
 
         # Tab 3: Related Data
         with tab3:
             st.subheader("Known Associations")
-            r_resp = requests.post(f"{API_URL}/related-data", json=payload)
-            if r_resp.status_code == 200:
-                r_data = r_resp.json()
-                if r_data:
-                    st.dataframe(pd.DataFrame(r_data), use_container_width=True)
+            try:
+                r_resp = requests.post(f"{API_URL}/related-data", json=payload)
+                if r_resp.status_code == 200:
+                    r_data = r_resp.json()
+                    if r_data:
+                        st.dataframe(pd.DataFrame(r_data), use_container_width=True)
+                    else:
+                        st.info("No known ClinVar or GWAS associations found for this specific variant.")
                 else:
-                    st.info("No known ClinVar or GWAS associations found for this specific variant.")
-            else:
-                st.error("Failed to fetch related data.")
-                
+                    st.error("Failed to fetch related data.")
+            except Exception as e:
+                st.error(f"Error fetching related data: {e}")
+
     except requests.exceptions.ConnectionError:
         st.error("❌ Could not connect to backend API. Is `api.py` running?")
     except requests.exceptions.HTTPError as e:
-        # Handle 400 errors (validation) differently from 500 errors
         if e.response.status_code == 400:
             error_detail = e.response.json().get("detail", "Unknown error")
             st.warning(f"⚠️ {error_detail}")
@@ -326,20 +377,123 @@ with tab4:
                 if not all(k in variants[0] for k in ["chrom", "pos", "ref", "alt"]):
                     st.error("CSV must contain chrom, pos, ref, alt columns.")
                 else:
-                    with st.spinner("Processing batch on server..."):
-                        b_resp = requests.post(f"{API_URL}/batch-impact", json={"variants": variants})
-                        b_resp.raise_for_status()
-                        results = b_resp.json()
+                    # Start Batch
+                    with st.spinner("Initializing batch..."):
+                        start_resp = requests.post(f"{API_URL}/batch-start", json={"variants": variants})
+                        start_resp.raise_for_status()
+                        batch_data = start_resp.json()
+                        batch_id = batch_data["batch_id"]
+                    
+                    st.success(f"Batch started! ID: {batch_id}")
+                    
+                    # Progress Bar
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    
+                    # Poll for completion
+                    while True:
+                        status_resp = requests.get(f"{API_URL}/batch-status/{batch_id}")
+                        if status_resp.status_code != 200:
+                            st.error("Failed to get batch status.")
+                            break
                         
-                    res_df = pd.DataFrame(results)
-                    st.success(f"Processed {len(results)} variants.")
+                        status_data = status_resp.json()
+                        state = status_data["status"]
+                        processed = status_data["processed"]
+                        total = status_data["total"]
+                        
+                        # Update progress
+                        if total > 0:
+                            progress = min(processed / total, 1.0)
+                            progress_bar.progress(progress)
+                            status_text.text(f"Processed {processed}/{total} variants...")
+                        
+                        if state in ["completed", "failed"]:
+                            break
+                        
+                        time.sleep(0.5)
                     
-                    # Display Table
-                    st.dataframe(res_df.style.applymap(lambda x: "color: red" if x == "High" else "color: orange" if x == "Medium" else "color: green", subset=["priority"]), use_container_width=True)
-                    
-                    # Download
-                    csv = res_df.to_csv(index=False).encode('utf-8')
-                    st.download_button("💾 Download Batch Results", data=csv, file_name="batch_results.csv", mime="text/csv")
+                    if state == "completed":
+                        results = status_data["results"]
+                        res_df = pd.DataFrame(results)
+                        st.success(f"Processed {len(results)} variants.")
+                        
+                        # Display Table
+                        st.dataframe(res_df.style.applymap(lambda x: "color: red" if x == "High" else "color: orange" if x == "Medium" else "color: green", subset=["priority"]), use_container_width=True)
+                        
+                        # Download
+                        csv = res_df.to_csv(index=False).encode('utf-8')
+                        st.download_button("💾 Download Batch Results", data=csv, file_name="batch_results.csv", mime="text/csv")
+                    else:
+                        st.error(f"Batch failed: {status_data.get('error', 'Unknown error')}")
                     
             except Exception as e:
                 st.error(f"Batch processing failed: {e}")
+
+# Tab 5: About
+with tab5:
+    st.header("About CardioVar")
+    
+    st.markdown("""
+    **CardioVar** is a precision medicine tool for predicting the functional impact of genetic variants 
+    in cardiovascular disease genes.
+    """)
+    
+    st.subheader("🧠 Deep Learning Model")
+    st.markdown("""
+    **Enformer** - Sequence-based Transformer model
+    
+    - **Architecture:** Transformer-based neural network
+    - **Context Window:** 196,608 bp genomic sequence
+    - **Output Tracks:** 5,313 epigenomic features
+    - **Hardware:** GPU-accelerated (CUDA)
+    - **Reference:** [Avsec et al. 2021, Nature Genetics](https://www.nature.com/articles/s41588-021-00782-6)
+    
+    The model predicts functional impact by analyzing chromatin accessibility, 
+    histone modifications, and transcription factor binding patterns across the genome.
+    """)
+    
+    st.subheader("📊 Data Sources")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("""
+        **Live APIs:**
+        - ✅ ClinVar (NCBI E-utilities)
+        - ✅ gnomAD v4 (population frequencies)
+        - ✅ Ensembl REST API (gene annotations)
+        - ✅ GTEx v8 (tissue expression)
+        - ✅ UCSC (PhyloP conservation)
+        """)
+    
+    with col2:
+        st.markdown("""
+        **Fallback Data:**
+        - 📁 Gene annotations (JSON)
+        - 📁 Protein domains (JSON)
+        - 📁 Expression profiles (TSV)
+        - 📁 Conservation scores (NumPy)
+        - 📁 Gene structure (JSON)
+        """)
+    
+    st.subheader("⚙️ Technical Details")
+    st.markdown(f"""
+    - **Genome Build:** GRCh38 / hg38
+    - **API Caching:** 24-hour TTL
+    - **Rate Limiting:** 3 calls/second (NCBI)
+    - **Model:** {metrics.get('model_used', 'Enformer (Deep Learning)') if 'metrics' in locals() else 'Enformer (Deep Learning)'}
+    """)
+    
+    st.subheader("⚠️ Disclaimer")
+    st.warning("""
+    **RESEARCH USE ONLY** — This tool is for research and educational purposes only. 
+    It is NOT intended for clinical diagnosis or treatment decisions. Always consult 
+    with qualified healthcare professionals for medical advice.
+    """)
+    
+    st.subheader("📄 License")
+    st.markdown("""
+    Apache License 2.0 - Open Source
+    
+    © 2024 CardioVar Project
+    """)

@@ -1,0 +1,188 @@
+[
+  {
+    "gene_symbol": "MYH9",
+    "protein_length": 1960,
+    "domains": [
+      {
+        "name": "Myosin_head",
+        "start": 78,
+        "end": 766,
+        "type": "pfam"
+      },
+      {
+        "name": "IQ_motif",
+        "start": 837,
+        "end": 872,
+        "type": "pfam"
+      },
+      {
+        "name": "Myosin_tail",
+        "start": 1414,
+        "end": 1508,
+        "type": "pfam"
+      },
+      {
+        "name": "Coiled_coil",
+        "start": 1494,
+        "end": 1790,
+        "type": "domain"
+      }
+    ]
+  },
+  {
+    "gene_symbol": "LMNA",
+    "protein_length": 664,
+    "domains": [
+      {
+        "name": "Lamin_tail",
+        "start": 70,
+        "end": 118,
+        "type": "pfam"
+      },
+      {
+        "name": "Filament",
+        "start": 109,
+        "end": 203,
+        "type": "pfam"
+      },
+      {
+        "name": "Ig_like",
+        "start": 518,
+        "end": 568,
+        "type": "pfam"
+      },
+      {
+        "name": "Lamin_EGF",
+        "start": 575,
+        "end": 638,
+        "type": "pfam"
+      }
+    ]
+  },
+  {
+    "gene_symbol": "PCSK9",
+    "protein_length": 692,
+    "domains": [
+      {
+        "name": "Peptidase_S8",
+        "start": 37,
+        "end": 128,
+        "type": "pfam"
+      },
+      {
+        "name": "PA_PCSK9",
+        "start": 376,
+        "end": 400,
+        "type": "pfam"
+      },
+      {
+        "name": "PCSK9_C",
+        "start": 462,
+        "end": 548,
+        "type": "pfam"
+      }
+    ]
+  },
+  {
+    "gene_symbol": "ACTN2",
+    "protein_length": 894,
+    "domains": [
+      {
+        "name": "CH_domain",
+        "start": 17,
+        "end": 119,
+        "type": "pfam"
+      },
+      {
+        "name": "Spectrin",
+        "start": 278,
+        "end": 380,
+        "type": "pfam"
+      },
+      {
+        "name": "EF_hand",
+        "start": 747,
+        "end": 784,
+        "type": "pfam"
+      },
+      {
+        "name": "EF_hand",
+        "start": 778,
+        "end": 850,
+        "type": "pfam"
+      }
+    ]
+  },
+  {
+    "gene_symbol": "APOB",
+    "protein_length": 4563,
+    "domains": [
+      {
+        "name": "Vitellogenin_N",
+        "start": 45,
+        "end": 615,
+        "type": "pfam"
+      },
+      {
+        "name": "ApoB",
+        "start": 2123,
+        "end": 2220,
+        "type": "pfam"
+      },
+      {
+        "name": "ApoB_C",
+        "start": 2397,
+        "end": 2421,
+        "type": "pfam"
+      }
+    ]
+  },
+  {
+    "gene_symbol": "TTN",
+    "protein_length": 34350,
+    "domains": [
+      {
+        "name": "Ig_3",
+        "start": 133,
+        "end": 199,
+        "type": "pfam"
+      },
+      {
+        "name": "Fn3",
+        "start": 9051,
+        "end": 9114,
+        "type": "pfam"
+      },
+      {
+        "name": "Kinase",
+        "start": 33423,
+        "end": 33692,
+        "type": "pfam"
+      }
+    ]
+  },
+  {
+    "gene_symbol": "MYL3",
+    "protein_length": 195,
+    "domains": [
+      {
+        "name": "EF_hand_1",
+        "start": 33,
+        "end": 68,
+        "type": "pfam"
+      },
+      {
+        "name": "EF_hand_7",
+        "start": 73,
+        "end": 123,
+        "type": "pfam"
+      },
+      {
+        "name": "EF_hand_8",
+        "start": 126,
+        "end": 153,
+        "type": "pfam"
+      }
+    ]
+  }
+]

@@ -1,0 +1,50 @@
+gene_symbol	tissue	tpm
+MYH9	Heart - Left Ventricle	180.75
+MYH9	Heart - Atrial Appendage	147.89
+MYH9	Artery - Aorta	55.78
+MYH9	Artery - Coronary	46.7
+MYH9	Liver	8.01
+MYH9	Brain - Cortex	2.39
+MYH9	Kidney - Cortex	6.27
+LMNA	Heart - Left Ventricle	131.82
+LMNA	Heart - Atrial Appendage	94.87
+LMNA	Artery - Aorta	23.42
+LMNA	Artery - Coronary	27.53
+LMNA	Liver	6.9
+LMNA	Brain - Cortex	5.93
+LMNA	Kidney - Cortex	3.28
+PCSK9	Heart - Left Ventricle	1.68
+PCSK9	Heart - Atrial Appendage	8.28
+PCSK9	Artery - Aorta	1.86
+PCSK9	Artery - Coronary	2.06
+PCSK9	Liver	166.05
+PCSK9	Brain - Cortex	6.09
+PCSK9	Kidney - Cortex	6.29
+ACTN2	Heart - Left Ventricle	171.04
+ACTN2	Heart - Atrial Appendage	90.67
+ACTN2	Artery - Aorta	32.62
+ACTN2	Artery - Coronary	48.57
+ACTN2	Liver	5.56
+ACTN2	Brain - Cortex	1.02
+ACTN2	Kidney - Cortex	6.44
+APOB	Heart - Left Ventricle	8.07
+APOB	Heart - Atrial Appendage	8.61
+APOB	Artery - Aorta	7.09
+APOB	Artery - Coronary	0.43
+APOB	Liver	292.41
+APOB	Brain - Cortex	3.82
+APOB	Kidney - Cortex	1.65
+TTN	Heart - Left Ventricle	135.59
+TTN	Heart - Atrial Appendage	63.98
+TTN	Artery - Aorta	60.51
+TTN	Artery - Coronary	67.74
+TTN	Liver	9.12
+TTN	Brain - Cortex	5.86
+TTN	Kidney - Cortex	7.64
+MYL3	Heart - Left Ventricle	186.59
+MYL3	Heart - Atrial Appendage	190.38
+MYL3	Artery - Aorta	43.44
+MYL3	Artery - Coronary	27.23
+MYL3	Liver	7.18
+MYL3	Brain - Cortex	7.29
+MYL3	Kidney - Cortex	3.59

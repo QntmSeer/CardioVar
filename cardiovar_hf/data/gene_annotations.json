@@ -1,136 +1,147 @@
 [
     {
-        "symbol": "MYH9",
-        "name": "Myosin Heavy Chain 9",
+        "symbol": "ACTN2",
+        "name": "Actinin Alpha 2",
         "pathways": [
-            "Cytoskeleton remodeling",
-            "Platelet activation",
-            "Integrin signaling"
+            "Sarcomere organization",
+            "Z-disc assembly",
+            "Actin cytoskeleton"
         ],
         "disease_associations": [
-            "May-Hegglin Anomaly",
-            "Fechtner Syndrome",
-            "Sebastian Syndrome"
+            "Dilated Cardiomyopathy",
+            "Hypertrophic Cardiomyopathy"
         ],
         "links": {
-            "Ensembl": "https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=ENSG00000100345",
-            "UniProt": "https://www.uniprot.org/uniprot/P35579"
+            "Ensembl": "https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=ENSG00000077522",
+            "UniProt": "https://www.uniprot.org/uniprot/P35609"
         },
         "expression": [
             {
                 "tissue": "Heart LV",
-                "tpm": 45.2
+                "tpm": 125.4
             },
             {
                 "tissue": "Heart RA",
-                "tpm": 38.7
+                "tpm": 118.2
             },
             {
                 "tissue": "Aorta",
-                "tpm": 32.1
+                "tpm": 45.1
             },
             {
                 "tissue": "Coronary Artery",
-                "tpm": 28.5
+                "tpm": 52.3
             },
             {
                 "tissue": "Liver",
-                "tpm": 8.3
+                "tpm": 2.1
             },
             {
                 "tissue": "Brain",
-                "tpm": 12.1
+                "tpm": 8.5
             },
             {
                 "tissue": "Kidney",
-                "tpm": 15.4
-            },
-            {
-                "tissue": "Skeletal Muscle",
-                "tpm": 52.8
-            }
-        ],
-        "protein_domains": [
-            {
-                "name": "Motor domain",
-                "start": 1,
-                "end": 780
-            },
-            {
-                "name": "IQ motif",
-                "start": 781,
-                "end": 850
-            },
-            {
-                "name": "Coiled-coil",
-                "start": 851,
-                "end": 1960
-            }
-        ],
-        "protein_length": 1960
-    },
-    {
-        "symbol": "APOL1",
-        "name": "Apolipoprotein L1",
-        "pathways": [
-            "Lipid metabolism",
-            "Innate immunity"
-        ],
-        "disease_associations": [
-            "Chronic Kidney Disease",
-            "Focal Segmental Glomerulosclerosis"
-        ],
-        "links": {
-            "Ensembl": "https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=ENSG00000100342",
-            "UniProt": "https://www.uniprot.org/uniprot/O14791"
-        },
-        "expression": [
-            {
-                "tissue": "Heart LV",
-                "tpm": 12.3
-            },
-            {
-                "tissue": "Heart RA",
-                "tpm": 10.8
-            },
-            {
-                "tissue": "Aorta",
-                "tpm": 15.2
-            },
-            {
-                "tissue": "Coronary Artery",
-                "tpm": 14.1
-            },
-            {
-                "tissue": "Liver",
-                "tpm": 85.4
-            },
-            {
-                "tissue": "Brain",
                 "tpm": 3.2
             },
             {
-                "tissue": "Kidney",
-                "tpm": 92.7
-            },
-            {
                 "tissue": "Skeletal Muscle",
-                "tpm": 6.5
+                "tpm": 215.8
             }
         ],
         "protein_domains": [
             {
-                "name": "BH3 domain",
+                "name": "Actin-binding domain 1",
                 "start": 1,
-                "end": 120
+                "end": 250
             },
             {
-                "name": "Pore-forming",
-                "start": 121,
-                "end": 398
+                "name": "Spectrin repeats",
+                "start": 251,
+                "end": 750
+            },
+            {
+                "name": "Actin-binding domain 2",
+                "start": 751,
+                "end": 894
             }
         ],
-        "protein_length": 398
+        "protein_length": 894
+    },
+    {
+        "symbol": "LMNA",
+        "name": "Lamin A/C",
+        "pathways": [
+            "Nuclear envelope organization",
+            "DNA repair",
+            "Gene expression regulation"
+        ],
+        "disease_associations": [
+            "Dilated Cardiomyopathy 1A",
+            "Emery-Dreifuss Muscular Dystrophy",
+            "Hutchinson-Gilford Progeria"
+        ],
+        "links": {
+            "Ensembl": "https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=ENSG00000160789",
+            "UniProt": "https://www.uniprot.org/uniprot/P02545"
+        },
+        "expression": [
+            {
+                "tissue": "Heart LV",
+                "tpm": 95.3
+            },
+            {
+                "tissue": "Heart RA",
+                "tpm": 88.7
+            },
+            {
+                "tissue": "Aorta",
+                "tpm": 62.1
+            },
+            {
+                "tissue": "Coronary Artery",
+                "tpm": 58.4
+            },
+            {
+                "tissue": "Liver",
+                "tpm": 45.2
+            },
+            {
+                "tissue": "Brain",
+                "tpm": 38.9
+            },
+            {
+                "tissue": "Kidney",
+                "tpm": 52.1
+            },
+            {
+                "tissue": "Skeletal Muscle",
+                "tpm": 105.6
+            }
+        ],
+        "protein_domains": [
+            {
+                "name": "Lamin tail domain",
+                "start": 1,
+                "end": 30
+            },
+            {
+                "name": "Coiled-coil rod",
+                "start": 31,
+                "end": 385
+            },
+            {
+                "name": "Ig-like domain",
+                "start": 386,
+                "end": 545
+            },
+            {
+                "name": "Nuclear localization signal",
+                "start": 546,
+                "end": 664
+            }
+        ],
+        "protein_length": 664
     },
     {
         "symbol": "PCSK9",
@@ -204,5 +215,289 @@
             }
         ],
         "protein_length": 692
+    },
+    {
+        "symbol": "APOB",
+        "name": "Apolipoprotein B",
+        "pathways": [
+            "Lipoprotein metabolism",
+            "Cholesterol transport",
+            "Lipid homeostasis"
+        ],
+        "disease_associations": [
+            "Familial Hypercholesterolemia",
+            "Coronary Artery Disease",
+            "Atherosclerosis"
+        ],
+        "links": {
+            "Ensembl": "https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=ENSG00000084674",
+            "UniProt": "https://www.uniprot.org/uniprot/P04114"
+        },
+        "expression": [
+            {
+                "tissue": "Heart LV",
+                "tpm": 5.2
+            },
+            {
+                "tissue": "Heart RA",
+                "tpm": 4.8
+            },
+            {
+                "tissue": "Aorta",
+                "tpm": 12.3
+            },
+            {
+                "tissue": "Coronary Artery",
+                "tpm": 15.1
+            },
+            {
+                "tissue": "Liver",
+                "tpm": 1852.4
+            },
+            {
+                "tissue": "Brain",
+                "tpm": 2.1
+            },
+            {
+                "tissue": "Kidney",
+                "tpm": 8.5
+            },
+            {
+                "tissue": "Skeletal Muscle",
+                "tpm": 1.2
+            }
+        ],
+        "protein_domains": [
+            {
+                "name": "N-terminal domain",
+                "start": 1,
+                "end": 1000
+            },
+            {
+                "name": "Lipid-binding region",
+                "start": 1001,
+                "end": 3000
+            },
+            {
+                "name": "C-terminal domain",
+                "start": 3001,
+                "end": 4563
+            }
+        ],
+        "protein_length": 4563
+    },
+    {
+        "symbol": "TTN",
+        "name": "Titin",
+        "pathways": [
+            "Sarcomere assembly",
+            "Muscle contraction",
+            "Mechanosensing"
+        ],
+        "disease_associations": [
+            "Dilated Cardiomyopathy",
+            "Hypertrophic Cardiomyopathy",
+            "Tibial Muscular Dystrophy"
+        ],
+        "links": {
+            "Ensembl": "https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=ENSG00000155657",
+            "UniProt": "https://www.uniprot.org/uniprot/Q8WZ42"
+        },
+        "expression": [
+            {
+                "tissue": "Heart LV",
+                "tpm": 2845.2
+            },
+            {
+                "tissue": "Heart RA",
+                "tpm": 2654.8
+            },
+            {
+                "tissue": "Aorta",
+                "tpm": 125.3
+            },
+            {
+                "tissue": "Coronary Artery",
+                "tpm": 142.1
+            },
+            {
+                "tissue": "Liver",
+                "tpm": 0.5
+            },
+            {
+                "tissue": "Brain",
+                "tpm": 1.2
+            },
+            {
+                "tissue": "Kidney",
+                "tpm": 0.8
+            },
+            {
+                "tissue": "Skeletal Muscle",
+                "tpm": 3254.6
+            }
+        ],
+        "protein_domains": [
+            {
+                "name": "Z-disc region",
+                "start": 1,
+                "end": 8000
+            },
+            {
+                "name": "I-band region",
+                "start": 8001,
+                "end": 20000
+            },
+            {
+                "name": "A-band region",
+                "start": 20001,
+                "end": 34350
+            }
+        ],
+        "protein_length": 34350
+    },
+    {
+        "symbol": "MYL3",
+        "name": "Myosin Light Chain 3",
+        "pathways": [
+            "Muscle contraction",
+            "Calcium signaling",
+            "Cardiac muscle development"
+        ],
+        "disease_associations": [
+            "Hypertrophic Cardiomyopathy",
+            "Restrictive Cardiomyopathy"
+        ],
+        "links": {
+            "Ensembl": "https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=ENSG00000160808",
+            "UniProt": "https://www.uniprot.org/uniprot/P08590"
+        },
+        "expression": [
+            {
+                "tissue": "Heart LV",
+                "tpm": 485.2
+            },
+            {
+                "tissue": "Heart RA",
+                "tpm": 452.8
+            },
+            {
+                "tissue": "Aorta",
+                "tpm": 35.1
+            },
+            {
+                "tissue": "Coronary Artery",
+                "tpm": 42.3
+            },
+            {
+                "tissue": "Liver",
+                "tpm": 1.2
+            },
+            {
+                "tissue": "Brain",
+                "tpm": 2.5
+            },
+            {
+                "tissue": "Kidney",
+                "tpm": 1.8
+            },
+            {
+                "tissue": "Skeletal Muscle",
+                "tpm": 125.4
+            }
+        ],
+        "protein_domains": [
+            {
+                "name": "EF-hand 1",
+                "start": 1,
+                "end": 40
+            },
+            {
+                "name": "EF-hand 2",
+                "start": 41,
+                "end": 80
+            },
+            {
+                "name": "EF-hand 3",
+                "start": 81,
+                "end": 120
+            },
+            {
+                "name": "EF-hand 4",
+                "start": 121,
+                "end": 150
+            }
+        ],
+        "protein_length": 150
+    },
+    {
+        "symbol": "MYH9",
+        "name": "Myosin Heavy Chain 9",
+        "pathways": [
+            "Cytoskeleton remodeling",
+            "Platelet activation",
+            "Integrin signaling"
+        ],
+        "disease_associations": [
+            "May-Hegglin Anomaly",
+            "Fechtner Syndrome",
+            "Sebastian Syndrome"
+        ],
+        "links": {
+            "Ensembl": "https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=ENSG00000100345",
+            "UniProt": "https://www.uniprot.org/uniprot/P35579"
+        },
+        "expression": [
+            {
+                "tissue": "Heart LV",
+                "tpm": 45.2
+            },
+            {
+                "tissue": "Heart RA",
+                "tpm": 38.7
+            },
+            {
+                "tissue": "Aorta",
+                "tpm": 32.1
+            },
+            {
+                "tissue": "Coronary Artery",
+                "tpm": 28.5
+            },
+            {
+                "tissue": "Liver",
+                "tpm": 8.3
+            },
+            {
+                "tissue": "Brain",
+                "tpm": 12.1
+            },
+            {
+                "tissue": "Kidney",
+                "tpm": 15.4
+            },
+            {
+                "tissue": "Skeletal Muscle",
+                "tpm": 52.8
+            }
+        ],
+        "protein_domains": [
+            {
+                "name": "Motor domain",
+                "start": 1,
+                "end": 780
+            },
+            {
+                "name": "IQ motif",
+                "start": 781,
+                "end": 850
+            },
+            {
+                "name": "Coiled-coil",
+                "start": 851,
+                "end": 1960
+            }
+        ],
+        "protein_length": 1960
     }
 ]

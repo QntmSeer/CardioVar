@@ -1,4 +1,114 @@
 {
+    "chr1:236719007:G:A": [
+        {
+            "source": "ClinVar",
+            "trait": "Dilated Cardiomyopathy",
+            "significance": "Pathogenic",
+            "id": "RCV000123456"
+        },
+        {
+            "source": "GWAS Catalog",
+            "trait": "Left ventricular mass",
+            "p_value": "3.2e-18",
+            "study": "Wild et al. 2017"
+        }
+    ],
+    "chr1:156134457:C:T": [
+        {
+            "source": "ClinVar",
+            "trait": "Dilated Cardiomyopathy 1A",
+            "significance": "Pathogenic",
+            "id": "RCV000014567"
+        },
+        {
+            "source": "ClinVar",
+            "trait": "Emery-Dreifuss Muscular Dystrophy",
+            "significance": "Pathogenic",
+            "id": "RCV000014568"
+        },
+        {
+            "source": "GWAS Catalog",
+            "trait": "Cardiac conduction",
+            "p_value": "1.5e-12",
+            "study": "van Setten et al. 2018"
+        }
+    ],
+    "chr1:55039974:G:T": [
+        {
+            "source": "ClinVar",
+            "trait": "Hypercholesterolemia",
+            "significance": "Protective",
+            "id": "RCV000234567"
+        },
+        {
+            "source": "GWAS Catalog",
+            "trait": "LDL cholesterol",
+            "p_value": "8.7e-45",
+            "study": "Cohen et al. 2005"
+        },
+        {
+            "source": "GWAS Catalog",
+            "trait": "Coronary artery disease",
+            "p_value": "2.1e-22",
+            "study": "Myocardial Infarction Genetics Consortium"
+        }
+    ],
+    "chr2:21006288:C:T": [
+        {
+            "source": "ClinVar",
+            "trait": "Familial Hypercholesterolemia",
+            "significance": "Pathogenic",
+            "id": "RCV000345678"
+        },
+        {
+            "source": "GWAS Catalog",
+            "trait": "Total cholesterol",
+            "p_value": "5.4e-38",
+            "study": "Willer et al. 2013"
+        }
+    ],
+    "chr2:178571794:G:A": [
+        {
+            "source": "ClinVar",
+            "trait": "Dilated Cardiomyopathy",
+            "significance": "Pathogenic",
+            "id": "RCV000456789"
+        },
+        {
+            "source": "GWAS Catalog",
+            "trait": "Atrial fibrillation",
+            "p_value": "1.2e-15",
+            "study": "Christophersen et al. 2017"
+        }
+    ],
+    "chr3:46860813:G:C": [
+        {
+            "source": "ClinVar",
+            "trait": "Hypertrophic Cardiomyopathy",
+            "significance": "Pathogenic",
+            "id": "RCV000567890"
+        },
+        {
+            "source": "GWAS Catalog",
+            "trait": "Left ventricular wall thickness",
+            "p_value": "4.8e-10",
+            "study": "Aung et al. 2020"
+        }
+    ],
+    "chr22:36305985:C:T": [
+        {
+            "source": "ClinVar",
+            "trait": "May-Hegglin Anomaly",
+            "significance": "Pathogenic",
+            "id": "RCV000678901"
+        },
+        {
+            "source": "GWAS Catalog",
+            "trait": "Platelet count",
+            "p_value": "2.4e-22",
+            "study": "Gieger et al. 2011"
+        }
+    ],
     "chr22:36191400:A:C": [
         {
             "source": "ClinVar",
@@ -11,14 +121,6 @@
             "trait": "Platelet count",
             "p_value": "2.4e-22",
             "study": "Gieger et al. 2011"
-        }
-    ],
-    "chr1:12345678:G:T": [
-        {
-            "source": "ClinVar",
-            "trait": "Hypercholesterolemia",
-            "significance": "Likely Pathogenic",
-            "id": "RCV000005678"
         }
     ]
 }

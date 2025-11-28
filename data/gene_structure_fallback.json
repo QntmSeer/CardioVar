@@ -1,0 +1,94 @@
+{
+    "MYH9": [
+        {
+            "start": -50,
+            "end": 20,
+            "id": "ENSE00001",
+            "gene_id": "ENSG00000100345"
+        },
+        {
+            "start": 80,
+            "end": 150,
+            "id": "ENSE00002",
+            "gene_id": "ENSG00000100345"
+        }
+    ],
+    "LMNA": [
+        {
+            "start": -80,
+            "end": -10,
+            "id": "ENSE00003",
+            "gene_id": "ENSG00000160789"
+        },
+        {
+            "start": 30,
+            "end": 90,
+            "id": "ENSE00004",
+            "gene_id": "ENSG00000160789"
+        }
+    ],
+    "PCSK9": [
+        {
+            "start": -20,
+            "end": 40,
+            "id": "ENSE00005",
+            "gene_id": "ENSG00000169174"
+        },
+        {
+            "start": 100,
+            "end": 180,
+            "id": "ENSE00006",
+            "gene_id": "ENSG00000169174"
+        }
+    ],
+    "ACTN2": [
+        {
+            "start": -60,
+            "end": 0,
+            "id": "ENSE00007",
+            "gene_id": "ENSG00000077522"
+        },
+        {
+            "start": 50,
+            "end": 120,
+            "id": "ENSE00008",
+            "gene_id": "ENSG00000077522"
+        }
+    ],
+    "APOB": [
+        {
+            "start": -90,
+            "end": -30,
+            "id": "ENSE00009",
+            "gene_id": "ENSG00000084674"
+        },
+        {
+            "start": 10,
+            "end": 60,
+            "id": "ENSE00010",
+            "gene_id": "ENSG00000084674"
+        }
+    ],
+    "TTN": [
+        {
+            "start": -40,
+            "end": 30,
+            "id": "ENSE00011",
+            "gene_id": "ENSG00000155657"
+        },
+        {
+            "start": 70,
+            "end": 140,
+            "id": "ENSE00012",
+            "gene_id": "ENSG00000155657"
+        }
+    ],
+    "MYL3": [
+        {
+            "start": -30,
+            "end": 20,
+            "id": "ENSE00013",
+            "gene_id": "ENSG00000160808"
+        }
+    ]
+}

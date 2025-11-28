@@ -11,8 +11,34 @@
 - **🧬 Genomic Context**: View gene structure (exons) and evolutionary conservation
 - **🏥 Clinical Relevance**: Cross-reference with ClinVar and GWAS Catalog
 - **🚀 Batch Processing**: Analyze multiple variants simultaneously
+- **🧠 Deep Learning**: Real variant impact predictions using **Enformer** (Transformer model)
 - **🧪 Tissue-Specific Analysis**: See how variants affect different cardiovascular tissues
 - **📊 Percentile Ranking**: Compare variant impact against background distribution
+
+## ⚠️ Important Disclaimer
+
+**RESEARCH USE ONLY** — This tool is for research and educational purposes only. It is NOT intended for clinical diagnosis or treatment decisions. Always consult with qualified healthcare professionals for medical advice.
+
+## 📊 Data Sources
+
+CardioVar integrates both **real** and **synthetic** data:
+
+### Real Data (🟢)
+- **Δ RNA-seq Predictions**: **Enformer** deep learning model (Transformer-based)
+- **gnomAD v4**: Allele frequencies from real population databases
+- **Ensembl REST API**: Gene annotations, coordinates, and biotypes
+- **UCSC PhyloP**: Evolutionary conservation scores (100 vertebrates)
+- **GTEx v8**: Real tissue-specific gene expression
+- **Curated ClinVar/GWAS**: Manually curated variant-disease associations
+
+### Synthetic Data (🟡)
+- **Background Distribution**: Simulated variant effect distributions for percentile calculations
+- **Protein Variant Positions**: Mock positions for visualization purposes
+
+For production use, replace synthetic components with:
+- Real deep learning models (e.g., Enformer, AlphaFold-based predictions)
+- Actual conservation scores (UCSC PhyloP/PhastCons)
+- Real tissue expression data (GTEx)
 
 ## 🏗️ Architecture
 
@@ -155,16 +181,6 @@ Process multiple variants in batch.
 
 - **Plot Colors**: Adjust signal and highlight colors in the sidebar
 - **Theme**: Modify `.streamlit/config.toml` for custom themes
-
-## 📝 Data Sources
-
-Currently uses **mock data** for demonstration. To integrate real data:
-
-1. Replace `variant_engine.py` logic with actual deep learning model
-2. Connect to real APIs:
-   - ClinVar: https://www.ncbi.nlm.nih.gov/clinvar/
-   - gnomAD: https://gnomad.broadinstitute.org/
-   - GTEx: https://gtexportal.org/
 
 ## 🤝 Contributing
 

@@ -14,9 +14,10 @@ def test_variant_impact_smoke():
     }
     print(f"Testing {BASE_URL}/variant-impact with payload: {payload}")
     try:
-        r = requests.post(f"{BASE_URL}/variant-impact", json=payload, timeout=10)
-        r.raise_for_status()
-        data = r.json()
+        # Increased timeout to 60s because Enformer loading/inference on CPU is slow
+        response = requests.post(f"{BASE_URL}/variant-impact", json=payload, timeout=60)
+        response.raise_for_status()
+        data = response.json()
         
         # Check for expected top-level keys based on variant_engine.py
         # Expected: variant_id, metrics, curve, tracks

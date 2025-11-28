@@ -1,5 +1,5 @@
 alphagenome
-numpy==1.24.4
+numpy<2.0
 matplotlib
 seaborn
 pandas
@@ -11,4 +11,7 @@ fastapi
 uvicorn
 python-multipart
 requests
-pytest
+pytest==7.4.0
+torch
+enformer-pytorch
+transformers
