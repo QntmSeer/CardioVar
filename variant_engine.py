@@ -157,6 +157,8 @@ def compute_variant_impact(chrom, pos, ref, alt, assembly="GRCh38", window_size=
         signal = signal * 50.0 
         
         # Add a little noise for realism (measurement noise)
+        # Seed deterministically so same variant always gives same result
+        np.random.seed(pos % 10000)
         noise = np.random.normal(0, 0.05, len(x))
         delta_rna = signal + noise
         

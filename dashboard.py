@@ -204,6 +204,7 @@ if "page" not in st.session_state:
 
 def set_page(name: str):
     st.session_state.page = name
+    st.session_state.nav_radio = name
 
 # ── Sidebar ─────────────────────────────────────────────────────────────────
 PAGES = ["Inference", "Gene Panel", "Benchmarking", "MSA Explorer", "Models", "Report", "Settings"]
@@ -229,9 +230,8 @@ with st.sidebar:
         key="nav_radio",
         label_visibility="collapsed",
     )
-    # Sync radio → session state page
-    if selected_page != st.session_state.page:
-        st.session_state.page = selected_page
+    # Radio IS the page — update session state immediately on change
+    st.session_state.page = selected_page
 
     st.markdown("---")
 
