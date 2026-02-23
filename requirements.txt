@@ -1,17 +1,36 @@
-alphagenome
+# ── Core web framework ─────────────────────────────────────────────────────
+fastapi>=0.110.0
+uvicorn>=0.29.0
+python-multipart>=0.0.9
+pydantic>=2.0.0
+
+# ── Dashboard ──────────────────────────────────────────────────────────────
+streamlit>=1.33.0
+
+# ── Scientific computing ───────────────────────────────────────────────────
 numpy<2.0
-matplotlib
-seaborn
-pandas
-pyensembl
-python-dotenv
-jupyter
-streamlit
-fastapi
-uvicorn
-python-multipart
-requests
-pytest==7.4.0
-torch
-enformer-pytorch
-transformers
+scipy>=1.12.0
+pandas>=2.0.0
+
+# ── Visualisation ──────────────────────────────────────────────────────────
+plotly>=5.22.0
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# ── Bioinformatics ─────────────────────────────────────────────────────────
+msaexplorer>=0.4.0
+
+# ── Deep learning ─────────────────────────────────────────────────────────
+torch>=2.1.0
+enformer-pytorch>=0.8.0
+transformers>=4.38.0
+
+# ── External APIs ──────────────────────────────────────────────────────────
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# ── System / monitoring ────────────────────────────────────────────────────
+psutil>=5.9.0
+
+# ── Testing ───────────────────────────────────────────────────────────────
+pytest>=7.4.0
