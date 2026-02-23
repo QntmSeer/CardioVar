@@ -9,9 +9,11 @@ __pycache__/
 pdb_seqres.txt
 backups/
 
-# Local dev outputs
-*.png
-*.zip
+# Local dev outputs (root-level only — exclude generated test PNGs)
+/*.png
+/*.zip
+# Allow docs screenshots
+!docs/screenshots/
 test_stats_backend.py
 
 # IDE
