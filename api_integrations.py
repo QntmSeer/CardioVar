@@ -897,3 +897,48 @@ def fetch_dbsnp_variants(chrom: str, pos: int, ref: str, alt: str, force_live: b
 
     fallback_used = True
     return None
+
+
+# ---------------------------------------------------------------------------
+# GTEx — Tissue Expression
+# ---------------------------------------------------------------------------
+def fetch_gtex_expression(gene_symbol: str, dataset: str = "gtex_v8") -> Optional[List[Dict]]:
+    """
+    Fetch median TPM per tissue from GTEx v8 for a given gene symbol.
+
+    Returns:
+        Sorted list of {tissue: str, tpm: float} dicts, or None on failure.
+    """
+    global fallback_used
+    cache_key = f"gtex_expression:{gene_symbol}"
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+
+    try:
+        url = f"{GTEX_API}/expression/geneExpression"
+        params = {
+            "datasetId": dataset,
+            "gencodeId": "",  # we'll search by gene name instead
+            "geneSymbol": gene_symbol,
+        }
+        resp = SESSION.get(url, params=params, timeout=15)
+        if resp.status_code == 200:
+            raw = resp.json()
+            # GTEx returns list of {tissueSiteDetailId, median, unit}
+            records = raw.get("geneExpression", [])
+            if records:
+                results = [
+                    {"tissue": r["tissueSiteDetailId"].replace("_", " ").title(),
+                     "tpm": round(float(r.get("median", 0)), 3)}
+                    for r in records
+                ]
+                results.sort(key=lambda x: x["tpm"], reverse=True)
+                cache.set(cache_key, results)
+                logging.info(f"GTEx: got {len(results)} tissues for {gene_symbol}")
+                return results
+    except Exception as e:
+        logging.debug(f"GTEx expression fetch failed for {gene_symbol}: {e}")
+
+    fallback_used = True
+    return None

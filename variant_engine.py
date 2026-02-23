@@ -278,16 +278,39 @@ def compute_variant_impact(chrom, pos, ref, alt, assembly="GRCh38", window_size=
     else:
         print(f">> Found {len(exons)} exons for {chrom}:{pos}")
     
-    # 6. Tissue-Specific Effects (mock)
-    tissues = ["Heart LV", "Heart RA", "Aorta", "Coronary Artery", "Liver", "Brain", "Kidney"]
+    # 6. Tissue-Specific Effects — real GTEx expression scaled by Enformer impact
+    # Fetch real GTEx median TPM for this gene
     tissue_effects = []
-    for tissue in tissues:
-        # Heart tissues have higher impact
-        if "Heart" in tissue or "Aorta" in tissue or "Coronary" in tissue:
-            effect = abs(max_delta) * np.random.uniform(0.7, 1.2)
+    try:
+        from api_integrations import fetch_gtex_expression
+        gtex_data = fetch_gtex_expression(gene_symbol) if gene_symbol != "UNKNOWN" else None
+        if gtex_data:
+            # Scale by Enformer delta: high-expression tissues show more impact
+            max_tpm = max(t.get("tpm", 0) for t in gtex_data) or 1.0
+            for t in gtex_data:
+                tpm = t.get("tpm", 0)
+                # Tissue impact = fraction of expression × model delta magnitude
+                impact = round(abs(max_delta) * (tpm / max_tpm), 4)
+                tissue_effects.append({"tissue": t["tissue"], "delta": impact, "tpm": tpm})
+            data_sources["tissue_effects"] = "GTEx v8 API (real expression)"
+            print(f">> Real GTEx tissue expression for {gene_symbol}: {len(tissue_effects)} tissues")
         else:
-            effect = abs(max_delta) * np.random.uniform(0.1, 0.4)
-        tissue_effects.append({"tissue": tissue, "delta": round(effect, 2)})
+            raise ValueError("No GTEx data returned")
+    except Exception as e:
+        print(f">> GTEx unavailable ({e}), using cardiac-weighted fallback")
+        # Biologically-informed fallback: cardiac tissues scaled higher
+        CARDIAC = {"Heart Left Ventricle", "Heart Atrial Appendage", "Aorta",
+                   "Coronary Artery", "Small Intestine Terminal Ileum"}
+        TISSUES = [
+            "Heart Left Ventricle", "Heart Atrial Appendage", "Aorta",
+            "Coronary Artery", "Liver", "Brain Cerebellum",
+            "Kidney Cortex", "Lung", "Skeletal Muscle",
+        ]
+        np.random.seed(pos % 10000)
+        for t in TISSUES:
+            weight = np.random.uniform(0.7, 1.2) if t in CARDIAC else np.random.uniform(0.05, 0.35)
+            tissue_effects.append({"tissue": t, "delta": round(abs(max_delta) * weight, 4)})
+        data_sources["tissue_effects"] = "GTEx unavailable — cardiac-weighted fallback"
     
     # 7. Background Distribution - Real from pre-computed database (with fallback)
     background_deltas = load_background_distribution(gene_symbol)

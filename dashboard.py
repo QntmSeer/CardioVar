@@ -199,11 +199,13 @@ if "analysis_results" not in st.session_state:
     st.session_state.analysis_results = None
 if "inputs" not in st.session_state:
     st.session_state.inputs = {"chrom": "chr22", "pos": 36191400, "ref": "A", "alt": "C"}
-if "page" not in st.session_state:
-    st.session_state.page = "Inference"
+# nav_radio is the SINGLE source of truth for navigation.
+# Initialize it once; never pass index= to st.radio again.
+if "nav_radio" not in st.session_state:
+    st.session_state.nav_radio = "Inference"
 
 def set_page(name: str):
-    st.session_state.page = name
+    """Programmatic navigation — write directly to the radio key and rerun."""
     st.session_state.nav_radio = name
 
 # ── Sidebar ─────────────────────────────────────────────────────────────────
@@ -223,15 +225,13 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
+    # No index= — key alone controls the radio; avoids the 2-click lag
     selected_page = st.radio(
         "Navigate",
         PAGES,
-        index=PAGES.index(st.session_state.page),
         key="nav_radio",
         label_visibility="collapsed",
     )
-    # Radio IS the page — update session state immediately on change
-    st.session_state.page = selected_page
 
     st.markdown("---")
 
