@@ -1,153 +1,141 @@
-# CardioVar: CVD Variant Impact Explorer
+<div align="center">
 
-![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
-![Python](https://img.shields.io/badge/python-3.11-blue.svg)
+<img src="logo.png" alt="CardioVar logo" width="80"/>
 
-**CardioVar** is a precision medicine tool designed to predict the functional impact of genetic variants in cardiovascular disease genes. By leveraging deep learning models, it estimates how a specific variant alters RNA-seq expression profiles, potentially disrupting gene regulation.
+# CardioVar
 
-## 🌟 Features
+**Precision genomics platform for cardiovascular variant interpretation**
 
-- **📉 Predict Impact**: Visualize Δ RNA-seq effects of single nucleotide variants
-- **🧬 Genomic Context**: View gene structure (exons) and evolutionary conservation
-- **🏥 Clinical Relevance**: Cross-reference with ClinVar and GWAS Catalog
-- **🚀 Batch Processing**: Analyze multiple variants simultaneously
-- **🧠 Deep Learning**: Real variant impact predictions using **Enformer** (Transformer model)
-- **🧪 Tissue-Specific Analysis**: See how variants affect different cardiovascular tissues
-- **📊 Percentile Ranking**: Compare variant impact against background distribution
+[![Python](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Enformer](https://img.shields.io/badge/model-Enformer-orange.svg)](https://github.com/deepmind/deepmind-research/tree/master/enformer)
+[![Assembly](https://img.shields.io/badge/genome-GRCh38-green.svg)](https://www.ncbi.nlm.nih.gov/datasets/genome/GCF_000001405.40/)
 
-## ⚠️ Important Disclaimer
+> ⚠️ **Research use only.** Not intended for clinical diagnosis or patient care.
 
-**RESEARCH USE ONLY** — This tool is for research and educational purposes only. It is NOT intended for clinical diagnosis or treatment decisions. Always consult with qualified healthcare professionals for medical advice.
+</div>
 
-## 📊 Data Sources
+---
 
-CardioVar integrates both **real** and **synthetic** data:
+## Overview
 
-### Real Data (🟢)
-- **Δ RNA-seq Predictions**: **Enformer** deep learning model (Transformer-based)
-- **gnomAD v4**: Allele frequencies from real population databases
-- **Ensembl REST API**: Gene annotations, coordinates, and biotypes
-- **UCSC PhyloP**: Evolutionary conservation scores (100 vertebrates)
-- **GTEx v8**: Real tissue-specific gene expression
-- **Curated ClinVar/GWAS**: Manually curated variant-disease associations
+**CardioVar** predicts the regulatory impact of genomic variants in cardiomyopathy-relevant genes using [Enformer](https://www.nature.com/articles/s41592-021-01252-x) — a state-of-the-art transformer-based deep learning model that maps 196 kb DNA sequences to 5,313 epigenomic assay tracks.
 
-### Synthetic Data (🟡)
-- **Background Distribution**: Simulated variant effect distributions for percentile calculations
-- **Protein Variant Positions**: Mock positions for visualization purposes
+The platform combines Enformer predictions with live population genomics (gnomAD v4), evolutionary conservation (UCSC PhyloP), tissue expression (GTEx v8), and clinical annotations (ClinVar) into a unified interactive dashboard.
 
-For production use, replace synthetic components with:
-- Real deep learning models (e.g., Enformer, AlphaFold-based predictions)
-- Actual conservation scores (UCSC PhyloP/PhastCons)
-- Real tissue expression data (GTEx)
+---
 
-## 🏗️ Architecture
+## Screenshots
 
-CardioVar uses a **Client-Server Architecture**:
+### Variant Inference — Metrics + Multi-Track Genomic Browser
+![Inference results](docs/screenshots/inference_results.png)
 
-- **Backend (FastAPI)**: REST API serving variant predictions and annotations
-- **Frontend (Streamlit)**: Interactive dashboard for visualization and analysis
-- **Data Layer**: JSON-based mock data for genes and variants
+*Metric tiles (Gene · Max |Δ| · Z-Score · Percentile · gnomAD Freq · Confidence) + Plot A: ΔRNA-seq profile with ±1 SD background ribbon, gene structure track, and PhyloP conservation.*
 
-```
-cardiovar/
-├── api.py                  # FastAPI backend
-├── variant_engine.py       # Core prediction logic
-├── dashboard.py            # Streamlit frontend
-├── data/
-│   ├── gene_annotations.json
-│   └── related_variants.json
-├── tests/
-│   └── test_qc_backend.py
-└── requirements.txt
-```
+---
 
-## 🚀 Quick Start
+### Statistical Context — Background KDE + Pathogenicity Radar
+![Statistical context](docs/screenshots/statistical_context.png)
 
-### Prerequisites
+*Plot B: Variant impact vs. gene-specific background distribution (KDE) with Z-score annotation. Plot C: 5-axis radar chart comparing the variant's evidence profile to the known-pathogenic median.*
+
+---
+
+### Population & Clinical Context — gnomAD + ClinVar Lollipop
+![Population and clinical](docs/screenshots/population_clinical.png)
+
+*Plot E: Variant allele frequency in the gnomAD population context. Plot F: ClinVar lollipop map of all known variants in the ±50 kb region, colored by pathogenicity classification.*
+
+---
+
+### Tissue Effects — GTEx Expression + Enformer Track Heatmap
+![Tissue effects](docs/screenshots/tissue_effects.png)
+
+*Plot G: Tissue-specific impact sorted by magnitude (real GTEx v8 expression scaled by Enformer Δ). Plot H: Top-20 differentially predicted Enformer tracks (diverging blue/red heatmap).*
+
+---
+
+### Gene Panel
+![Gene panel](docs/screenshots/gene_panel.png)
+
+*Pre-loaded pathogenic variants for 7 key cardiovascular genes — single click to load and analyze.*
+
+---
+
+## Features
+
+| Feature | Details |
+|:---|:---|
+| **Deep Learning Inference** | Enformer transformer (GPU-accelerated, 196 kb context) |
+| **8 Scientific Plots** | Genomic browser, KDE, Radar, Evidence stack, gnomAD AF, ClinVar lollipop, GTEx heatmap, Enformer tracks |
+| **Classification Badge** | LIKELY PATHOGENIC / VUS / LIKELY BENIGN from multi-evidence heuristic |
+| **Population Context** | gnomAD v4 allele frequency (real API with caching) |
+| **Conservation** | UCSC PhyloP 100-way vertebrate scores |
+| **Tissue Expression** | GTEx v8 median TPM (real API) scaled by Enformer delta |
+| **Gene Panel** | 7 curated HCM/DCM genes with canonical pathogenic variants |
+| **Batch Analysis** | CSV / VCF upload, async queue, downloadable results |
+| **MSA Explorer** | FASTA alignment upload, similarity matrix, Shannon entropy plot |
+| **Workspace Save/Load** | JSON export/import of session state |
+| **HTML Report** | Downloadable variant report with full metrics |
+
+---
+
+## Data Sources
+
+| Source | Type | Used for |
+|:---|:---|:---|
+| **Enformer** (Avsec et al. 2021) | Real (GPU) | ΔRNA-seq impact profile |
+| **gnomAD v4** | Real API | Allele frequency |
+| **UCSC PhyloP** | Real API | Conservation track |
+| **GTEx v8** | Real API | Tissue expression heatmap |
+| **Ensembl REST** | Real API | Gene annotations, exon structure |
+| **ClinVar (NCBI)** | Real API | Clinical variant associations |
+| **Background KDE** | Pre-computed | Gene-specific percentile/Z-score |
+
+---
+
+## Quick Start
+
+### Requirements
 
 - Python 3.11+
-- pip
+- NVIDIA GPU recommended (CPU fallback available)
 
-### Installation
+### Install
 
-1. **Clone the repository**
 ```bash
-git clone https://github.com/YOUR_USERNAME/cardiovar.git
-cd cardiovar
-```
-
-2. **Install dependencies**
-```bash
+git clone https://github.com/QntmSeer/CardioVar.git
+cd CardioVar
 pip install -r requirements.txt
 ```
 
-3. **Set up environment variables**
-Create a `.env` file:
+### Run
+
 ```bash
-ALPHAGENOME_API_KEY=your_api_key_here
-```
+# Terminal 1 — Backend
+python -m uvicorn api:app --host 127.0.0.1 --port 8000
 
-### Running the Application
-
-You need to run **two** processes:
-
-**Terminal 1: Start the Backend**
-```bash
-python -m uvicorn api:app --host 0.0.0.0 --port 8000 --reload
-```
-
-**Terminal 2: Start the Dashboard**
-```bash
+# Terminal 2 — Dashboard
 streamlit run dashboard.py
 ```
 
-Then open your browser to **http://localhost:8501**
+Open **http://localhost:8501** in your browser.
 
-## 📊 Usage
+### Windows one-liner
 
-### Single Variant Analysis
-
-1. Enter variant details in the sidebar:
-   - Chromosome (e.g., `chr22`)
-   - Position (e.g., `36191400`)
-   - Reference allele (e.g., `A`)
-   - Alternate allele (e.g., `C`)
-
-2. Click **Run Analysis**
-
-3. Explore the results across 4 tabs:
-   - **Variant Explorer**: Main Δ RNA-seq plot, tissue-specific impact, percentile ranking
-   - **Gene Annotations**: Expression profiles, protein domains, pathways
-   - **Related Data**: ClinVar and GWAS associations
-   - **Batch Analysis**: Upload CSV for multiple variants
-
-### Batch Analysis
-
-Upload a CSV file with columns: `chrom`, `pos`, `ref`, `alt`
-
-Example:
-```csv
-chrom,pos,ref,alt
-chr22,36191400,A,C
-chr1,12345678,G,T
+```powershell
+.\start_local.ps1
 ```
 
-## 🧪 Testing
+---
 
-Run the automated test suite:
-
-```bash
-pytest tests/test_qc_backend.py -v
-```
-
-## 📦 API Endpoints
+## API Reference
 
 ### `POST /variant-impact`
-Compute impact for a single variant.
 
-**Request:**
 ```json
 {
+  "assembly": "GRCh38",
   "chrom": "chr22",
   "pos": 36191400,
   "ref": "A",
@@ -155,50 +143,69 @@ Compute impact for a single variant.
 }
 ```
 
-**Response:**
-```json
-{
-  "variant_id": "chr22:36191400:A:C",
-  "metrics": {
-    "max_delta": 3.512,
-    "gnomad_freq": 0.00005,
-    "gene_symbol": "MYH9",
-    "percentile": 95.2
-  },
-  "curve": { "x": [...], "y": [...] },
-  "tissue_effects": [...],
-  "background_distribution": {...}
-}
-```
+**Response** includes: `metrics`, `curve` (x/y), `tracks` (exons, conservation), `tissue_effects`, `background_distribution`, `gene`, `data_sources`.
 
-### `GET /gene-annotations?gene=MYH9`
-Get detailed gene annotations including expression and protein domains.
+### `GET /system-status`
 
-### `POST /batch-impact`
-Process multiple variants in batch.
+Returns GPU availability, model load status, and API connectivity.
 
-## 🎨 Customization
+### `POST /batch-start` + `GET /batch-status/{id}`
 
-- **Plot Colors**: Adjust signal and highlight colors in the sidebar
-- **Theme**: Modify `.streamlit/config.toml` for custom themes
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📄 License
-
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Mock gene data inspired by GTEx and Ensembl
-- Visualization design influenced by UCSC Genome Browser and IGV
-
-## 📧 Contact
-
-For questions or feedback, please open an issue on GitHub.
+Submit and poll a batch variant analysis job.
 
 ---
 
-**Note**: This is a research prototype using synthetic data. Not for clinical use.
+## Project Structure
+
+```
+CardioVar/
+├── api.py                  # FastAPI backend (REST endpoints)
+├── api_integrations.py     # gnomAD, GTEx, UCSC, Ensembl, ClinVar clients
+├── api_cache.py            # SQLite-backed API response cache (24h TTL)
+├── dashboard.py            # Streamlit frontend
+├── plots.py                # 8 Plotly scientific visualization functions
+├── variant_engine.py       # Core variant impact computation
+├── enformer_wrapper.py     # Enformer GPU inference wrapper
+├── vcf_parser.py           # VCF file ingestion
+├── utils.py                # CLI utilities
+├── main.py                 # CLI entry point
+├── data/                   # Reference data & SQLite cache
+├── docs/screenshots/       # App screenshots
+├── tests/                  # Unit & integration tests
+└── requirements.txt
+```
+
+---
+
+## Supported Gene Panel
+
+| Gene | Disease | Variant |
+|:---|:---|:---|
+| **MYH9** | HCM / MYH9-RD | chr22:36191400 A→C |
+| **LMNA** | DCM / EDMD | chr1:156104762 G→A |
+| **PCSK9** | Familial Hypercholesterolemia | chr1:55039974 G→A |
+| **ACTN2** | HCM / DCM | chr1:236893000 C→T |
+| **TTN** | DCM / HCM | chr2:178525989 G→A |
+| **APOB** | Familial Hypercholesterolemia | chr2:21009300 C→T |
+| **MYL3** | HCM | chr3:46900000 A→G |
+
+---
+
+## Citation
+
+If you use CardioVar in your research, please cite:
+
+```
+CardioVar v1.2 — Precision genomics for cardiovascular variant interpretation.
+GitHub: https://github.com/QntmSeer/CardioVar
+```
+
+Enformer model: Avsec et al. (2021). *Effective gene expression prediction from sequence by integrating long-range interactions*. Nature Methods. https://doi.org/10.1038/s41592-021-01252-x
+
+---
+
+## License
+
+Apache License 2.0 — see [LICENSE](LICENSE).
+
+> **Disclaimer:** CardioVar is for research and educational purposes only and does not constitute medical advice.
