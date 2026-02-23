@@ -679,6 +679,37 @@ def fetch_myvariant_info(chrom, pos, ref, alt):
         print(f"MyVariant.info fetch failed: {e}")
     return None
 
+
+def fetch_single_cell_expression(gene_symbol: str) -> Optional[List[Dict[str, Any]]]:
+    """Fetch single-cell expression data from local curated dataset."""
+    global fallback_used
+    cache_key = f"single_cell:{gene_symbol}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        logging.debug(f"Cache hit for {cache_key}")
+        return cached
+
+    # Load from JSON
+    try:
+        path = os.path.join(FALLBACK_DIR, "single_cell_data.json")
+        if not os.path.exists(path):
+            logging.warning(f"Single cell data file not found at {path}")
+            return None
+            
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            
+        for entry in data:
+            if entry.get("symbol") == gene_symbol:
+                expr_data = entry.get("expression", [])
+                cache.set(cache_key, expr_data)
+                return expr_data
+                
+    except Exception as e:
+        logging.debug(f"Single cell data load error: {e}")
+        
+    return None
+
 # ---------------------------------------------------------------------------
 # New API Wrappers (ClinVar & dbSNP)
 # ---------------------------------------------------------------------------

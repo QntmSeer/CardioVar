@@ -1,0 +1,209 @@
+[
+    {
+        "symbol": "MYH9",
+        "expression": [
+            {
+                "cell_type": "Cardiomyocytes",
+                "tpm": 15.5
+            },
+            {
+                "cell_type": "Fibroblasts",
+                "tpm": 145.2
+            },
+            {
+                "cell_type": "Endothelial",
+                "tpm": 120.8
+            },
+            {
+                "cell_type": "Smooth Muscle",
+                "tpm": 85.4
+            },
+            {
+                "cell_type": "Immune",
+                "tpm": 45.1
+            },
+            {
+                "cell_type": "Adipocytes",
+                "tpm": 20.3
+            }
+        ]
+    },
+    {
+        "symbol": "LMNA",
+        "expression": [
+            {
+                "cell_type": "Cardiomyocytes",
+                "tpm": 85.2
+            },
+            {
+                "cell_type": "Fibroblasts",
+                "tpm": 110.5
+            },
+            {
+                "cell_type": "Endothelial",
+                "tpm": 65.8
+            },
+            {
+                "cell_type": "Smooth Muscle",
+                "tpm": 75.1
+            },
+            {
+                "cell_type": "Immune",
+                "tpm": 30.4
+            },
+            {
+                "cell_type": "Adipocytes",
+                "tpm": 55.6
+            }
+        ]
+    },
+    {
+        "symbol": "PCSK9",
+        "expression": [
+            {
+                "cell_type": "Cardiomyocytes",
+                "tpm": 1.2
+            },
+            {
+                "cell_type": "Fibroblasts",
+                "tpm": 0.5
+            },
+            {
+                "cell_type": "Endothelial",
+                "tpm": 0.8
+            },
+            {
+                "cell_type": "Smooth Muscle",
+                "tpm": 0.3
+            },
+            {
+                "cell_type": "Immune",
+                "tpm": 0.1
+            },
+            {
+                "cell_type": "Hepatocytes",
+                "tpm": 250.0
+            },
+            {
+                "cell_type": "Adipocytes",
+                "tpm": 1.5
+            }
+        ]
+    },
+    {
+        "symbol": "ACTN2",
+        "expression": [
+            {
+                "cell_type": "Cardiomyocytes",
+                "tpm": 350.5
+            },
+            {
+                "cell_type": "Skeletal Muscle",
+                "tpm": 320.1
+            },
+            {
+                "cell_type": "Fibroblasts",
+                "tpm": 5.2
+            },
+            {
+                "cell_type": "Endothelial",
+                "tpm": 2.1
+            },
+            {
+                "cell_type": "Smooth Muscle",
+                "tpm": 45.8
+            },
+            {
+                "cell_type": "Immune",
+                "tpm": 0.5
+            }
+        ]
+    },
+    {
+        "symbol": "TTN",
+        "expression": [
+            {
+                "cell_type": "Cardiomyocytes",
+                "tpm": 420.8
+            },
+            {
+                "cell_type": "Skeletal Muscle",
+                "tpm": 380.2
+            },
+            {
+                "cell_type": "Fibroblasts",
+                "tpm": 2.5
+            },
+            {
+                "cell_type": "Endothelial",
+                "tpm": 1.2
+            },
+            {
+                "cell_type": "Smooth Muscle",
+                "tpm": 15.4
+            },
+            {
+                "cell_type": "Immune",
+                "tpm": 0.2
+            }
+        ]
+    },
+    {
+        "symbol": "APOB",
+        "expression": [
+            {
+                "cell_type": "Cardiomyocytes",
+                "tpm": 0.8
+            },
+            {
+                "cell_type": "Fibroblasts",
+                "tpm": 0.2
+            },
+            {
+                "cell_type": "Endothelial",
+                "tpm": 0.1
+            },
+            {
+                "cell_type": "Hepatocytes",
+                "tpm": 450.0
+            },
+            {
+                "cell_type": "Enterocytes",
+                "tpm": 380.5
+            },
+            {
+                "cell_type": "Immune",
+                "tpm": 0.1
+            }
+        ]
+    },
+    {
+        "symbol": "MYL3",
+        "expression": [
+            {
+                "cell_type": "Cardiomyocytes",
+                "tpm": 550.2
+            },
+            {
+                "cell_type": "Slow Twitch Muscle",
+                "tpm": 480.1
+            },
+            {
+                "cell_type": "Fibroblasts",
+                "tpm": 1.5
+            },
+            {
+                "cell_type": "Endothelial",
+                "tpm": 0.8
+            },
+            {
+                "cell_type": "Smooth Muscle",
+                "tpm": 12.3
+            },
+            {
+                "cell_type": "Immune",
+                "tpm": 0.1
+            }
+        ]
+    }
+]

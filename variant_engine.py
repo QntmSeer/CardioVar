@@ -259,11 +259,13 @@ def compute_variant_impact(chrom, pos, ref, alt, assembly="GRCh38", window_size=
         # Successfully got real data
         print(f">> Using real PhyloP scores for {chrom}:{pos}")
         cons_scores = np.array(cons_scores)
+        used_real_cons = True
     else:
         # Fallback to synthetic
         print(f">> Using synthetic conservation for {chrom}:{pos} (UCSC API unavailable)")
         cons_scores = np.random.normal(0.5, 1.0, len(x))
         cons_scores[window_size-10:window_size+10] += 2.0  # Conserved peak
+        used_real_cons = False
     
     # Gene Structure (Exons) - Real from Ensembl
     exons = fetch_gene_structure(chrom, pos, window_size, force_live=force_live)
@@ -306,11 +308,45 @@ def compute_variant_impact(chrom, pos, ref, alt, assembly="GRCh38", window_size=
         "variant_impact": "Enformer (Deep Learning)" if dl_result else "Heuristic (Simulation)",
         "gnomad_frequency": "gnomAD v4 API" if freq and freq > 0 else "Not found in gnomAD",
         "gene_structure": "Ensembl API" if exons else "Local fallback",
-        "conservation": "UCSC PhyloP API" if cons_scores.any() else "Local fallback",
+        "conservation": "UCSC PhyloP API" if used_real_cons else "Synthetic fallback",
         "gene_symbol": "Ensembl API" if gene_symbol else "Heuristic",
         "background_distribution": "Simulated (for percentile calculation)",
         "tissue_effects": "Simulated (tissue-specific predictions)"
     }
+    
+    # 8. Fetch Gene Info
+    gene_info = fetch_ensembl_gene(gene_symbol)
+    
+    # 9. Calculate Statistics
+    # Z-Score
+    if background_deltas and len(background_deltas) > 1:
+        bg_mean = np.mean(background_deltas)
+        bg_std = np.std(background_deltas)
+        if bg_std > 0:
+            z_score = (abs(max_delta) - bg_mean) / bg_std
+        else:
+            z_score = 0.0
+    else:
+        z_score = 0.0
+        
+    # Confidence Score (Heuristic)
+    # Base confidence: 100%
+    # Penalties:
+    # - Using heuristic model: -50%
+    # - Synthetic conservation: -20%
+    # - Synthetic background: -10%
+    # - No gene info: -10%
+    confidence = 100.0
+    if not dl_result:
+        confidence -= 50.0
+    if "synthetic" in data_sources["conservation"].lower():
+        confidence -= 20.0
+    if "synthetic" in data_sources["background_distribution"].lower():
+        confidence -= 10.0
+    if not gene_info:
+        confidence -= 10.0
+    
+    confidence = max(0.0, confidence)
     
     return {
         "variant_id": f"{chrom}:{pos}:{ref}:{alt}",
@@ -320,6 +356,8 @@ def compute_variant_impact(chrom, pos, ref, alt, assembly="GRCh38", window_size=
             "gnomad_freq": freq,
             "gene_symbol": gene_symbol,
             "percentile": round(percentile, 1),
+            "z_score": round(z_score, 2),
+            "confidence": round(confidence, 1),
             "fallback_used": api_integrations.fallback_used,
             "model_used": "Enformer (Deep Learning)" if dl_result else "Heuristic (Simulation)"
         },
@@ -331,6 +369,7 @@ def compute_variant_impact(chrom, pos, ref, alt, assembly="GRCh38", window_size=
             "exons": exons,
             "conservation": cons_scores.tolist()
         },
+        "gene": gene_info,
         "tissue_effects": tissue_effects,
         "background_distribution": {
             "background_deltas": background_deltas,

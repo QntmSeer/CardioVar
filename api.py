@@ -46,14 +46,45 @@ from fastapi import BackgroundTasks
 import psutil
 
 # --- Global State ---
+# --- Global State ---
 BATCH_JOBS = {}
+SINGLE_JOBS = {}  # Store full results for single variant analysis
 
 # --- Models ---
 class BatchResponse(BaseModel):
     batch_id: str
     message: str
 
+class JobResponse(BaseModel):
+    job_id: str
+    message: str
+
 # --- Helper Functions ---
+def process_single_variant_task(job_id: str, req: VariantRequest):
+    """
+    Background task to process a single variant with FULL details.
+    """
+    try:
+        SINGLE_JOBS[job_id]["status"] = "processing"
+        
+        # Compute full impact with all tracks and curves
+        result = compute_variant_impact(
+            req.chrom, 
+            req.pos, 
+            req.ref, 
+            req.alt, 
+            req.assembly, 
+            req.window_size,
+            force_live=req.force_live
+        )
+        
+        SINGLE_JOBS[job_id]["result"] = result
+        SINGLE_JOBS[job_id]["status"] = "completed"
+        
+    except Exception as e:
+        SINGLE_JOBS[job_id]["status"] = "failed"
+        SINGLE_JOBS[job_id]["error"] = str(e)
+
 def process_batch_task(batch_id: str, variants: List[VariantRequest]):
     """
     Background task to process variants.
@@ -106,7 +137,7 @@ def process_batch_task(batch_id: str, variants: List[VariantRequest]):
 @app.post("/variant-impact")
 def get_variant_impact(req: VariantRequest):
     """
-    Compute impact for a single variant.
+    Compute impact for a single variant (Synchronous - Legacy).
     """
     try:
         result = compute_variant_impact(
@@ -123,6 +154,48 @@ def get_variant_impact(req: VariantRequest):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/single-cell-expression")
+def get_single_cell_expression(payload: dict = Body(...)):
+    """
+    Fetch single-cell expression data for a given gene.
+    Payload: {"gene_symbol": "MYH9"}
+    """
+    from api_integrations import fetch_single_cell_expression
+    gene_symbol = payload.get("gene_symbol")
+    if not gene_symbol:
+        raise HTTPException(status_code=400, detail="gene_symbol is required")
+        
+    try:
+        data = fetch_single_cell_expression(gene_symbol)
+        if data is None:
+            # Return empty list instead of 404 to handle gracefully on frontend
+            return []
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/variant-impact-async", response_model=JobResponse)
+def get_variant_impact_async(req: VariantRequest, background_tasks: BackgroundTasks):
+    """
+    Start async impact computation for a single variant.
+    """
+    job_id = str(uuid.uuid4())
+    SINGLE_JOBS[job_id] = {
+        "status": "pending",
+        "result": None
+    }
+    background_tasks.add_task(process_single_variant_task, job_id, req)
+    return {"job_id": job_id, "message": "Analysis started"}
+
+@app.get("/job-status/{job_id}")
+def get_job_status(job_id: str):
+    """
+    Get status and result of a single variant job.
+    """
+    if job_id not in SINGLE_JOBS:
+        raise HTTPException(status_code=404, detail="Job ID not found")
+    return SINGLE_JOBS[job_id]
 
 @app.get("/gene-annotations")
 def get_gene_annotations(gene: str, force_live: bool = False):
