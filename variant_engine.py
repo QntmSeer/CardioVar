@@ -114,216 +114,127 @@ def compute_variant_impact(chrom, pos, ref, alt, assembly="GRCh38", window_size=
     if gene_symbol == "UNKNOWN":
         gene_symbol = {"chr22": "MYH9", "chr1": "PCSK9", "chr2": "APOB", "chr3": "MYL3"}.get(chrom, "GENE_X")
     
-    # 2. Generate Curve Data
-    # Try Deep Learning Model First
+    # 2. Variant Impact Curve
     dl_result = None
     try:
         from enformer_wrapper import predict_variant_impact_dl
-        print(f">> Attempting Deep Learning prediction for {chrom}:{pos}...")
         dl_result = predict_variant_impact_dl(chrom, pos, ref, alt)
     except ImportError:
-        print(">> Enformer not installed/working. Using heuristic model.")
+        print(">> Enformer not available. Using heuristic fallback.")
     except Exception as e:
-        print(f">> Deep Learning model failed: {e}. Using heuristic model.")
+        print(f">> Enformer failed ({e}). Using heuristic fallback.")
 
     x = np.arange(-window_size, window_size + 1)
-    
+
     if dl_result:
-        print(">> Deep Learning prediction successful!")
-        # Map Enformer output (128bp bins) to our visualization window
-        # We'll use cubic interpolation to smooth the coarse bins into our fine grid
         raw_profile = dl_result["raw_delta"]
         center = dl_result["center_idx"]
-        
-        # Extract a window of bins around center
-        # 1 bin = 128bp. Our window is ±100bp (total 200bp).
-        # So we need roughly ±2 bins to cover it, but let's take ±5 for context
+        # Extract ±5 Enformer bins (128 bp each) around the variant centre
         bin_subset = raw_profile[center-5:center+6]
-        
-        # Create x-axis for bins (scaled to bp)
-        # Center bin is at 0. Bins are 128bp apart.
         bin_x = np.arange(-5, 6) * 128
-        
-        # Interpolate to our x grid (-100 to +100)
         from scipy.interpolate import interp1d
-        # Use 'cubic' for smooth curves, fill_value="extrapolate" just in case
-        f = interp1d(bin_x, bin_subset, kind='cubic', fill_value="extrapolate")
-        
-        # Generate signal
-        signal = f(x)
-        
-        # Scale signal to be visible (Enformer deltas can be small)
-        # We normalize so the peak is meaningful but visible
-        signal = signal * 50.0 
-        
-        # Add a little noise for realism (measurement noise)
-        # Seed deterministically so same variant always gives same result
-        np.random.seed(pos % 10000)
-        noise = np.random.normal(0, 0.05, len(x))
-        delta_rna = signal + noise
+        signal = interp1d(bin_x, bin_subset, kind='cubic', fill_value="extrapolate")(x)
+        signal = signal * 50.0
+        np.random.seed(pos % 10000)  # deterministic per variant
+        delta_rna = signal + np.random.normal(0, 0.05, len(x))
         
     else:
-        # --- Fallback: Heuristic Model (Previous Logic) ---
-        np.random.seed(pos % 10000)  # Deterministic seed based on pos
-        
-        # Determine variant type based on position and alleles
-        is_transition = (ref in ['A', 'G'] and alt in ['A', 'G']) or (ref in ['C', 'T'] and alt in ['C', 'T'])
-        is_splice_region = (pos % 100) < 10  # Mock: ~10% are near splice sites
-        is_regulatory = (pos % 50) < 5  # Mock: ~10% are in regulatory regions
-        
-        # Base effect magnitude (depends on variant type)
-        if is_splice_region:
-            # Splice site variants: sharp, localized effect
-            base_magnitude = np.random.uniform(3.5, 5.5)
-            spread = 15  # Narrow effect
-            shape = 'sharp'
-        elif is_regulatory:
-            # Regulatory variants: broader, moderate effect
-            base_magnitude = np.random.uniform(2.0, 4.0)
-            spread = 40  # Broad effect
-            shape = 'broad'
-        else:
-            # Coding variants: moderate, intermediate spread
-            base_magnitude = np.random.uniform(1.5, 3.5)
-            spread = 25
-            shape = 'moderate'
-        
-        # Direction (gain or loss of function)
+        # Heuristic fallback — deterministic per variant position
+        np.random.seed(pos % 10000)
+        is_transition = (ref in ['A','G'] and alt in ['A','G']) or (ref in ['C','T'] and alt in ['C','T'])
+        is_splice = (pos % 100) < 10
+        is_regulatory = (pos % 50) < 5
         direction = 1 if (pos % 2 == 0) else -1
-        
-        # Generate signal based on variant type
-        if shape == 'sharp':
-            # Splice site: sharp peak with exponential decay
-            signal = base_magnitude * direction * np.exp(-0.15 * (x)**2)
-            # Add asymmetry (splice sites affect downstream more)
+
+        if is_splice:
+            base = np.random.uniform(3.5, 5.5)
+            signal = base * direction * np.exp(-0.15 * x**2)
             signal[x > 0] *= 0.7
-        elif shape == 'broad':
-            # Regulatory: broad Gaussian with long tail
-            signal = base_magnitude * direction * np.exp(-0.01 * (x)**2)
-            # Add secondary peak (distal regulatory effect)
-            secondary = 0.3 * base_magnitude * direction * np.exp(-0.02 * (x - 30)**2)
-            signal += secondary
+        elif is_regulatory:
+            base = np.random.uniform(2.0, 4.0)
+            signal = base * direction * np.exp(-0.01 * x**2)
+            signal += 0.3 * base * direction * np.exp(-0.02 * (x - 30)**2)
         else:
-            # Coding: intermediate with slight asymmetry
-            signal = base_magnitude * direction * np.exp(-0.04 * (x)**2)
-            # Transitions (A<->G, C<->T) have slightly different patterns
+            base = np.random.uniform(1.5, 3.5)
+            signal = base * direction * np.exp(-0.04 * x**2)
             if is_transition:
-                signal *= 0.85  # Transitions often have milder effects
-        
-        # Add realistic noise (heteroscedastic - more noise at extremes)
+                signal *= 0.85
+
         noise_level = 0.2 + 0.1 * np.abs(x) / window_size
         noise = np.random.normal(0, noise_level, len(x))
-        
-        # Add occasional outliers (biological variability)
         outlier_mask = np.random.random(len(x)) < 0.05
         noise[outlier_mask] += np.random.normal(0, 0.8, np.sum(outlier_mask))
-        
-        delta_rna = signal + noise
-        
-        # Ensure realistic bounds (RNA-seq changes rarely exceed ±10)
-        delta_rna = np.clip(delta_rna, -8, 8)
+        delta_rna = np.clip(signal + noise, -8, 8)
     
     # 3. Calculate Metrics
     max_idx = np.argmax(np.abs(delta_rna))
     max_delta = float(delta_rna[max_idx])
     max_pos_rel = int(x[max_idx])
     
-    # 4. Real gnomAD Frequency (with fallback)
+    # 4. Population Frequency (gnomAD → MyVariant.info → random fallback)
     freq = fetch_gnomad_frequency(chrom, pos, ref, alt, force_live=force_live)
     if freq is None:
-        # Try MyVariant.info as fallback
         from api_integrations import fetch_myvariant_info
         mv_data = fetch_myvariant_info(chrom, pos, ref, alt)
         if mv_data and "gnomad_genome" in mv_data:
             freq = mv_data["gnomad_genome"].get("af", {}).get("af", 0.0)
-            print(f"Using MyVariant.info frequency for {chrom}:{pos}: {freq}")
             api_integrations.fallback_used = True
         elif mv_data and "gnomad_exome" in mv_data:
             freq = mv_data["gnomad_exome"].get("af", {}).get("af", 0.0)
-            print(f"Using MyVariant.info frequency for {chrom}:{pos}: {freq}")
             api_integrations.fallback_used = True
         else:
-            # Fallback to mock if API fails AND local fallback fails (or force_live=True)
             freq = np.random.uniform(0.00001, 0.0001)
-            print(f"Using mock frequency for {chrom}:{pos} (gnomAD API unavailable)")
-    else:
-        print(f"Real gnomAD frequency for {chrom}:{pos}: {freq}")
+            print(f">> gnomAD unavailable for {chrom}:{pos}, using random fallback")
     
-    # 5. Conservation Track - Real PhyloP from UCSC (with fallback)
-    # Calculate genomic coordinates for conservation window
+    # 5. PhyloP Conservation (UCSC API, synthetic fallback)
     cons_start = max(0, pos - window_size)
-    cons_end = pos + window_size + 1
-    
-    # Try to fetch real PhyloP scores
+    cons_end   = pos + window_size + 1
     cons_scores = fetch_ucsc_phylop(chrom, cons_start, cons_end, force_live=force_live)
-    
     if cons_scores is not None and len(cons_scores) == len(x):
-        # Successfully got real data
-        print(f">> Using real PhyloP scores for {chrom}:{pos}")
-        cons_scores = np.array(cons_scores)
+        cons_scores  = np.array(cons_scores)
         used_real_cons = True
     else:
-        # Fallback to synthetic
-        print(f">> Using synthetic conservation for {chrom}:{pos} (UCSC API unavailable)")
-        cons_scores = np.random.normal(0.5, 1.0, len(x))
-        cons_scores[window_size-10:window_size+10] += 2.0  # Conserved peak
+        cons_scores  = np.random.normal(0.5, 1.0, len(x))
+        cons_scores[window_size-10:window_size+10] += 2.0
         used_real_cons = False
+        print(f">> PhyloP unavailable for {chrom}:{pos}, using synthetic fallback")
+
+    # Exon structure (Ensembl API)
+    exons = fetch_gene_structure(chrom, pos, window_size, force_live=force_live) or []
     
-    # Gene Structure (Exons) - Real from Ensembl
-    exons = fetch_gene_structure(chrom, pos, window_size, force_live=force_live)
-    if not exons:
-        # Fallback if API fails or no exons in window
-        exons = [] 
-        print(f">> No exons found in window for {chrom}:{pos}")
-    else:
-        print(f">> Found {len(exons)} exons for {chrom}:{pos}")
-    
-    # 6. Tissue-Specific Effects — real GTEx expression scaled by Enformer impact
-    # Fetch real GTEx median TPM for this gene
+    # 6. Tissue Effects — GTEx v8 TPM scaled by Enformer |delta|
     tissue_effects = []
     try:
         from api_integrations import fetch_gtex_expression
         gtex_data = fetch_gtex_expression(gene_symbol) if gene_symbol != "UNKNOWN" else None
-        if gtex_data:
-            # Scale by Enformer delta: high-expression tissues show more impact
-            max_tpm = max(t.get("tpm", 0) for t in gtex_data) or 1.0
-            for t in gtex_data:
-                tpm = t.get("tpm", 0)
-                # Tissue impact = fraction of expression × model delta magnitude
-                impact = round(abs(max_delta) * (tpm / max_tpm), 4)
-                tissue_effects.append({"tissue": t["tissue"], "delta": impact, "tpm": tpm})
-            data_sources["tissue_effects"] = "GTEx v8 API (real expression)"
-            print(f">> Real GTEx tissue expression for {gene_symbol}: {len(tissue_effects)} tissues")
-        else:
-            raise ValueError("No GTEx data returned")
+        if not gtex_data:
+            raise ValueError("No data returned")
+        max_tpm = max(t.get("tpm", 0) for t in gtex_data) or 1.0
+        for t in gtex_data:
+            tpm = t.get("tpm", 0)
+            tissue_effects.append({"tissue": t["tissue"],
+                                   "delta": round(abs(max_delta) * (tpm / max_tpm), 4),
+                                   "tpm":   tpm})
+        data_sources["tissue_effects"] = "GTEx v8 API"
     except Exception as e:
         print(f">> GTEx unavailable ({e}), using cardiac-weighted fallback")
-        # Biologically-informed fallback: cardiac tissues scaled higher
-        CARDIAC = {"Heart Left Ventricle", "Heart Atrial Appendage", "Aorta",
-                   "Coronary Artery", "Small Intestine Terminal Ileum"}
-        TISSUES = [
-            "Heart Left Ventricle", "Heart Atrial Appendage", "Aorta",
-            "Coronary Artery", "Liver", "Brain Cerebellum",
-            "Kidney Cortex", "Lung", "Skeletal Muscle",
-        ]
+        CARDIAC = {"Heart Left Ventricle", "Heart Atrial Appendage",
+                   "Aorta", "Coronary Artery"}
+        TISSUES = ["Heart Left Ventricle", "Heart Atrial Appendage", "Aorta",
+                   "Coronary Artery", "Liver", "Brain Cerebellum",
+                   "Kidney Cortex", "Lung", "Skeletal Muscle"]
         np.random.seed(pos % 10000)
         for t in TISSUES:
-            weight = np.random.uniform(0.7, 1.2) if t in CARDIAC else np.random.uniform(0.05, 0.35)
-            tissue_effects.append({"tissue": t, "delta": round(abs(max_delta) * weight, 4)})
+            w = np.random.uniform(0.7, 1.2) if t in CARDIAC else np.random.uniform(0.05, 0.35)
+            tissue_effects.append({"tissue": t, "delta": round(abs(max_delta) * w, 4)})
         data_sources["tissue_effects"] = "GTEx unavailable — cardiac-weighted fallback"
     
-    # 7. Background Distribution - Real from pre-computed database (with fallback)
+    # 7. Background Distribution (pre-computed per gene, or synthetic fallback)
     background_deltas = load_background_distribution(gene_symbol)
-    
     if background_deltas is None:
-        # Fallback to synthetic if no pre-computed data
-        print(f">> Using synthetic background for {gene_symbol} (no pre-computed data)")
         np.random.seed(pos % 100)
         background_deltas = np.abs(np.random.normal(0, 1.5, 200)).tolist()
-    else:
-        print(f">> Using pre-computed background for {gene_symbol} ({len(background_deltas)} variants)")
-    
-    # Calculate percentile
+        print(f">> No pre-computed background for {gene_symbol}, using synthetic")
     all_deltas = background_deltas + [abs(max_delta)]
     percentile = (np.sum(np.array(all_deltas) < abs(max_delta)) / len(all_deltas)) * 100
 
@@ -354,23 +265,12 @@ def compute_variant_impact(chrom, pos, ref, alt, assembly="GRCh38", window_size=
     else:
         z_score = 0.0
         
-    # Confidence Score (Heuristic)
-    # Base confidence: 100%
-    # Penalties:
-    # - Using heuristic model: -50%
-    # - Synthetic conservation: -20%
-    # - Synthetic background: -10%
-    # - No gene info: -10%
+    # Confidence: penalise each synthetic data source
     confidence = 100.0
-    if not dl_result:
-        confidence -= 50.0
-    if "synthetic" in data_sources["conservation"].lower():
-        confidence -= 20.0
-    if "synthetic" in data_sources["background_distribution"].lower():
-        confidence -= 10.0
-    if not gene_info:
-        confidence -= 10.0
-    
+    if not dl_result:                                                   confidence -= 50.0
+    if "synthetic" in data_sources["conservation"].lower():            confidence -= 20.0
+    if "synthetic" in data_sources["background_distribution"].lower(): confidence -= 10.0
+    if not gene_info:                                                   confidence -= 10.0
     confidence = max(0.0, confidence)
     
     return {
