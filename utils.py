@@ -84,7 +84,7 @@ def plot_deltas(rel_coords, delta_rna, chrom, pos, ref, alt, line_color='#2c3e50
     fig, ax = plt.subplots(figsize=(10, 5))
     
     # Main signal line
-    sns.lineplot(x=rel_coords, y=delta_rna, color=line_color, linewidth=2.5, ax=ax, label='$\Delta$ RNA-seq')
+    sns.lineplot(x=rel_coords, y=delta_rna, color=line_color, linewidth=2.5, ax=ax, label=r'$\Delta$ RNA-seq')
     
     # Reference lines
     ax.axhline(0, color='gray', linestyle='--', alpha=0.3)
@@ -103,7 +103,7 @@ def plot_deltas(rel_coords, delta_rna, chrom, pos, ref, alt, line_color='#2c3e50
     # Styling - Minimal
     ax.set_title(f"Variant Impact: {chrom}:{pos} {ref}→{alt}", fontsize=16, fontweight='bold', pad=20)
     ax.set_xlabel("Relative Genomic Coordinate (bp)", fontsize=12)
-    ax.set_ylabel("$\Delta$ RNA-seq Level", fontsize=12)
+    ax.set_ylabel(r"$\Delta$ RNA-seq Level", fontsize=12)
     ax.legend(loc='upper right', frameon=False)
     
     # Remove unnecessary spines for minimal look

@@ -12,6 +12,15 @@ def main():
     
     args = parser.parse_args()
     
+    banner = """
+  ____              _ _     __     __          
+ / ___|__ _ _ __ __| (_) ___\\ \\   / /_ _ _ __  
+| |   / _` | '__/ _` | |/ _ \\\\ \\ / / _` | '__| 
+| |__| (_| | | | (_| | | (_) |\\ V / (_| | |    
+ \\____\\__,_|_|  \\__,_|_|\\___/  \\_/ \\__,_|_|    
+           [ 8-BIT GENOMICS EDITION ]
+"""
+    print(banner)
     print(f"Running analysis for {args.chrom}:{args.pos} {args.ref}->{args.alt}")
     
     # 1. Get Data

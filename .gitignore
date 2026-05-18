@@ -8,6 +8,7 @@ __pycache__/
 # Large data files
 pdb_seqres.txt
 backups/
+data/api_cache.db
 
 # Local dev outputs (root-level only — exclude generated test PNGs)
 /*.png
@@ -15,6 +16,7 @@ backups/
 # Allow docs screenshots
 !docs/screenshots/
 test_stats_backend.py
+validate_variants.py
 
 # IDE
 .vscode/
