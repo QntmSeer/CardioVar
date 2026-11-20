@@ -122,17 +122,23 @@ def predict_variant_impact_dl(chrom, pos, ref, alt):
     
     # 5. Calculate Impact (L1 norm of difference across all tracks)
     # This gives us a profile of change across the 896 bins (each bin ~128bp)
-    delta_profile = np.abs(alt_human - ref_human).mean(axis=1) # Mean across tracks
+    signed_diff = alt_human - ref_human  # shape: (896, 5313)
+    delta_profile = np.abs(signed_diff).mean(axis=1)  # Mean across tracks
     
     # Center is the variant position
     center_idx = len(delta_profile) // 2
-    
-    # Extract a window around the center for visualization
-    # The model output is lower resolution (128bp bins)
-    # We'll interpolate to get a smooth curve for the UI
+
+    # Real top-20 Enformer human tracks by |delta| at the variant bin
+    center_track_deltas = signed_diff[center_idx]
+    top_indices = np.argsort(np.abs(center_track_deltas))[::-1][:20]
+    top_tracks = [
+        {"track": f"Enformer human track #{int(idx)}", "delta": float(center_track_deltas[idx])}
+        for idx in top_indices
+    ]
     
     return {
         "raw_delta": delta_profile,
         "center_idx": center_idx,
-        "max_impact": np.max(delta_profile)
+        "max_impact": float(np.max(delta_profile)),
+        "top_tracks": top_tracks,
     }

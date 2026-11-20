@@ -146,45 +146,46 @@ def compute_variant_impact(chrom, pos, ref, alt, assembly="GRCh38", window_size=
     max_delta = float(delta_rna[max_idx])
     max_pos_rel = int(x[max_idx])
     
-    # 4. Population Frequency (gnomAD → MyVariant.info → random fallback)
+    # 4. Population Frequency (gnomAD → MyVariant.info → None/Unavailable)
+    gnomad_source = "gnomAD API"
     freq = fetch_gnomad_frequency(chrom, pos, ref, alt, force_live=force_live)
     if freq is None:
         from api_integrations import fetch_myvariant_info
         mv_data = fetch_myvariant_info(chrom, pos, ref, alt)
         if mv_data and "gnomad_genome" in mv_data:
-            freq = mv_data["gnomad_genome"].get("af", {}).get("af", 0.0)
-            api_integrations.fallback_used = True
+            freq = mv_data["gnomad_genome"].get("af", {}).get("af")
+            gnomad_source = "MyVariant.info (gnomAD genome)"
         elif mv_data and "gnomad_exome" in mv_data:
-            freq = mv_data["gnomad_exome"].get("af", {}).get("af", 0.0)
-            api_integrations.fallback_used = True
+            freq = mv_data["gnomad_exome"].get("af", {}).get("af")
+            gnomad_source = "MyVariant.info (gnomAD exome)"
         else:
-            freq = np.random.uniform(0.00001, 0.0001)
-            print(f">> gnomAD unavailable for {chrom}:{pos}, using random fallback")
+            freq = None
+            gnomad_source = "Unavailable (gnomAD & MyVariant.info lookup failed)"
+            print(f">> gnomAD unavailable for {chrom}:{pos}; reporting Unavailable")
     
-    # 5. PhyloP Conservation (UCSC API, synthetic fallback)
+    # 5. PhyloP Conservation (UCSC API — no synthetic fallback)
     cons_start = max(0, pos - window_size)
     cons_end   = pos + window_size + 1
     cons_scores = fetch_ucsc_phylop(chrom, cons_start, cons_end, force_live=force_live)
     if cons_scores is not None and len(cons_scores) == len(x):
-        cons_scores  = np.array(cons_scores)
+        cons_scores = np.array(cons_scores)
         used_real_cons = True
     else:
-        cons_scores  = np.random.normal(0.5, 1.0, len(x))
-        cons_scores[window_size-10:window_size+10] += 2.0
+        cons_scores = None
         used_real_cons = False
-        print(f">> PhyloP unavailable for {chrom}:{pos}, using synthetic fallback")
+        print(f">> PhyloP unavailable for {chrom}:{pos}; reporting Unavailable")
 
     # Exon structure (Ensembl API)
     exons = fetch_gene_structure(chrom, pos, window_size, force_live=force_live) or []
     
-    # 6. Tissue Effects — GTEx v8 TPM scaled by Enformer |delta|
+    # 6. Tissue Effects — GTEx v8 TPM scaled by Enformer |delta| (no synthetic fallback)
     tissue_effects = []
     tissue_effects_source = "GTEx v8 API"
     try:
         from api_integrations import fetch_gtex_expression
         gtex_data = fetch_gtex_expression(gene_symbol) if gene_symbol != "UNANNOTATED" else None
         if not gtex_data:
-            raise ValueError("No data returned")
+            raise ValueError("No GTEx expression data returned")
         max_tpm = max(t.get("tpm", 0) for t in gtex_data) or 1.0
         for t in gtex_data:
             tpm = t.get("tpm", 0)
@@ -192,59 +193,64 @@ def compute_variant_impact(chrom, pos, ref, alt, assembly="GRCh38", window_size=
                                    "delta": round(abs(max_delta) * (tpm / max_tpm), 4),
                                    "tpm":   tpm})
     except Exception as e:
-        print(f">> GTEx unavailable ({e}), using cardiac-weighted fallback")
-        CARDIAC = {"Heart Left Ventricle", "Heart Atrial Appendage",
-                   "Aorta", "Coronary Artery"}
-        TISSUES = ["Heart Left Ventricle", "Heart Atrial Appendage", "Aorta",
-                   "Coronary Artery", "Liver", "Brain Cerebellum",
-                   "Kidney Cortex", "Lung", "Skeletal Muscle"]
-        np.random.seed(pos % 10000)
-        for t in TISSUES:
-            w = np.random.uniform(0.7, 1.2) if t in CARDIAC else np.random.uniform(0.05, 0.35)
-            tissue_effects.append({"tissue": t, "delta": round(abs(max_delta) * w, 4)})
-        tissue_effects_source = "GTEx unavailable — cardiac-weighted fallback"
+        print(f">> GTEx unavailable ({e}); reporting Unavailable")
+        tissue_effects = []
+        tissue_effects_source = "Unavailable (GTEx API failed or unannotated gene)"
     
-    # 7. Background Distribution (pre-computed per gene, or synthetic fallback)
+    # 7. Background Distribution (pre-computed per gene — no synthetic fallback)
     background_deltas = load_background_distribution(gene_symbol) if gene_symbol != "UNANNOTATED" else None
-    if background_deltas is None:
-        np.random.seed(pos % 100)
-        background_deltas = np.abs(np.random.normal(0, 1.5, 200)).tolist()
-        print(f">> No pre-computed background for {gene_symbol}, using synthetic")
-    all_deltas = background_deltas + [abs(max_delta)]
-    percentile = (np.sum(np.array(all_deltas) < abs(max_delta)) / len(all_deltas)) * 100
-
-    
-    # Track data sources for transparency
-    data_sources = {
-        "variant_impact": "Enformer (Deep Learning)",
-        "gnomad_frequency": "gnomAD v4 API" if freq and freq > 0 else "Not found in gnomAD",
-        "gene_structure": "Ensembl API" if exons else "Local fallback",
-        "conservation": "UCSC PhyloP API" if used_real_cons else "Synthetic fallback",
-        "gene_symbol": "Position-mapped (GRCh38)" if gene_symbol != "UNANNOTATED" else "Unannotated",
-        "background_distribution": "Simulated (for percentile calculation)",
-        "tissue_effects": tissue_effects_source
-    }
-    
-    # 8. Fetch Gene Info
-    gene_info = fetch_ensembl_gene(gene_symbol) if gene_symbol != "UNANNOTATED" else None
-    
-    # 9. Calculate Statistics
-    # Z-Score
     if background_deltas and len(background_deltas) > 1:
+        all_deltas = background_deltas + [abs(max_delta)]
+        percentile = round(float((np.sum(np.array(all_deltas) < abs(max_delta)) / len(all_deltas)) * 100), 1)
         bg_mean = np.mean(background_deltas)
         bg_std = np.std(background_deltas)
-        if bg_std > 0:
-            z_score = (abs(max_delta) - bg_mean) / bg_std
-        else:
-            z_score = 0.0
+        z_score = round(float((abs(max_delta) - bg_mean) / bg_std), 2) if bg_std > 0 else 0.0
+        bg_source = "Pre-computed gene background"
     else:
-        z_score = 0.0
+        background_deltas = None
+        percentile = None
+        z_score = None
+        bg_source = "Unavailable (no pre-computed gene background)"
+        print(f">> No pre-computed background for {gene_symbol}; reporting Unavailable")
+
+    # 8. Real ClinVar neighbouring variants (±50 kb, GRCh38)
+    try:
+        from api_integrations import fetch_clinvar_region_variants
+        clinvar_region = fetch_clinvar_region_variants(chrom, pos, window=50000, force_live=force_live)
+    except Exception as e:
+        print(f">> ClinVar region lookup failed ({e}); reporting Unavailable")
+        clinvar_region = None
+    clinvar_source = (
+        f"NCBI ClinVar API ({len(clinvar_region)} variants in ±50 kb)"
+        if clinvar_region is not None
+        else "Unavailable (NCBI ClinVar API failed)"
+    )
+
+    # Track data sources for transparency
+    enformer_top_tracks = dl_result.get("top_tracks")
+    data_sources = {
+        "variant_impact": "Enformer (Deep Learning)",
+        "enformer_tracks": "Enformer (top 20 human tracks)" if enformer_top_tracks else "Unavailable",
+        "gnomad_frequency": gnomad_source,
+        "gene_structure": "Ensembl API" if exons else "Unavailable (no exons returned)",
+        "conservation": "UCSC PhyloP API" if used_real_cons else "Unavailable (UCSC PhyloP API failed)",
+        "gene_symbol": "Position-mapped (GRCh38)" if gene_symbol != "UNANNOTATED" else "Unannotated",
+        "background_distribution": bg_source,
+        "tissue_effects": tissue_effects_source,
+        "clinvar": clinvar_source,
+    }
+    
+    # 9. Fetch Gene Info
+    gene_info = fetch_ensembl_gene(gene_symbol) if gene_symbol != "UNANNOTATED" else None
         
-    # Confidence: penalise each synthetic data source
+    # Confidence: penalise each unavailable data source
     confidence = 100.0
-    if "synthetic" in data_sources["conservation"].lower():            confidence -= 20.0
-    if "synthetic" in data_sources["background_distribution"].lower(): confidence -= 10.0
-    if not gene_info:                                                   confidence -= 10.0
+    if freq is None:                  confidence -= 20.0
+    if not used_real_cons:            confidence -= 20.0
+    if background_deltas is None:     confidence -= 10.0
+    if not tissue_effects:            confidence -= 10.0
+    if not gene_info:                 confidence -= 10.0
+    if clinvar_region is None:        confidence -= 10.0
     confidence = max(0.0, confidence)
     
     return {
@@ -254,8 +260,8 @@ def compute_variant_impact(chrom, pos, ref, alt, assembly="GRCh38", window_size=
             "max_pos_rel": max_pos_rel,
             "gnomad_freq": freq,
             "gene_symbol": gene_symbol,
-            "percentile": round(percentile, 1),
-            "z_score": round(z_score, 2),
+            "percentile": percentile,
+            "z_score": z_score,
             "confidence": round(confidence, 1),
             "fallback_used": api_integrations.fallback_used,
             "model_used": "Enformer (Deep Learning)"
@@ -266,8 +272,10 @@ def compute_variant_impact(chrom, pos, ref, alt, assembly="GRCh38", window_size=
         },
         "tracks": {
             "exons": exons,
-            "conservation": cons_scores.tolist()
+            "conservation": cons_scores.tolist() if cons_scores is not None else None
         },
+        "enformer_top_tracks": enformer_top_tracks,
+        "clinvar_region": clinvar_region,
         "gene": gene_info,
         "tissue_effects": tissue_effects,
         "background_distribution": {

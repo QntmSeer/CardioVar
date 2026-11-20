@@ -345,17 +345,31 @@ if selected_page == "Inference":
 
         # Metrics tiles
         conf = metrics.get("confidence", 0.0)
-        conf_color = COLORS["success"] if conf > 80 else COLORS["warning"] if conf > 50 else COLORS["danger"]
-        zscore_color = COLORS["danger"] if abs(metrics.get("z_score", 0)) > 2 else COLORS["text_dark"]
+        z_raw = metrics.get("z_score")
+        pct_raw = metrics.get("percentile")
+        gnomad_raw = metrics.get("gnomad_freq")
+
+        z_str = f"{z_raw:.2f}" if z_raw is not None else "Unavailable"
+        pct_str = f"{pct_raw:.1f}%" if pct_raw is not None else "Unavailable"
+        gnomad_str = f"{gnomad_raw:.2e}" if gnomad_raw is not None else "Unavailable"
+
+        # Surface any unavailable upstream lookups visibly
+        unavailable = [
+            f"{k}: {v}"
+            for k, v in data.get("data_sources", {}).items()
+            if isinstance(v, str) and "unavailable" in v.lower()
+        ]
+        if unavailable:
+            st.warning("Some upstream data sources were unavailable (no synthetic values substituted): " + " · ".join(unavailable))
 
         m1, m2, m3, m4, m5, m6 = st.columns(6)
         for col, lbl, val, sub in [
-            (m1, "Gene",        metrics.get("gene_symbol", "N/A"), "Symbol"),
+            (m1, "Gene",        metrics.get("gene_symbol", "UNANNOTATED"), "Symbol"),
             (m2, "Max |Δ|",     f"{abs(metrics.get('max_delta', 0)):.4f}", "Enformer"),
-            (m3, "Z-Score",     f"{metrics.get('z_score', 0):.2f}", "vs background"),
-            (m4, "Percentile",  f"{metrics.get('percentile', 0):.1f}%", "in gene"),
-            (m5, "gnomAD Freq", f"{metrics.get('gnomad_freq', 0):.2e}", "population"),
-            (m6, "Confidence",  f"{conf:.0f}%", "data quality"),
+            (m3, "Z-Score",     z_str, "vs background"),
+            (m4, "Percentile",  pct_str, "in gene"),
+            (m5, "gnomAD Freq", gnomad_str, "population"),
+            (m6, "Confidence",  f"{conf:.0f}%", "data completeness"),
         ]:
             with col:
                 st.markdown(f"""

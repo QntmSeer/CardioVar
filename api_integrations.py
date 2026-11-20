@@ -196,36 +196,7 @@ def fetch_gnomad_frequency(chrom: str, pos: int, ref: str, alt: str, force_live:
     except Exception as e:
         logging.debug(f"gnomAD API error: {e}")
 
-    if force_live:
-        logging.warning("Force live gnomAD failed; not attempting fallback.")
-        fallback_used = True
-        return None
-
-    # Fallback JSON
-    fallback = _load_json_fallback("gnomad_fallback.json")
-    
-    # Check if fallback is a list (old format) or dict (new format)
-    if isinstance(fallback, list):
-        for entry in fallback:
-            if (
-                entry.get("chrom") == chrom
-                and entry.get("pos") == pos
-                and entry.get("ref") == ref
-                and entry.get("alt") == alt
-            ):
-                fallback_used = True
-                cache.set(cache_key, entry.get("af"))
-                return entry.get("af")
-    elif isinstance(fallback, dict):
-        # Construct key: chrom-pos-ref-alt (chrom without 'chr')
-        clean_chrom = chrom.replace("chr", "")
-        key = f"{clean_chrom}-{pos}-{ref}-{alt}"
-        if key in fallback:
-            fallback_used = True
-            val = fallback[key]
-            cache.set(cache_key, val)
-            return val
-            
+    # Do not serve synthetic fallback allele frequencies
     fallback_used = True
     return None
 
@@ -419,23 +390,7 @@ def fetch_ucsc_phylop(chrom: str, start: int, end: int, force_live: bool = False
     except Exception as e:
         logging.debug(f"UCSC API error: {e}")
 
-    if force_live:
-        logging.warning("Force live PhyloP failed; not attempting fallback.")
-        fallback_used = True
-        return None
-
-    # Fallback: numpy cache file
-    try:
-        path = os.path.join(FALLBACK_DIR, "phylop_fallback.npy")
-        np_cache = np.load(path, allow_pickle=True).item()
-        key = (chrom, start, end)
-        val = np_cache.get(key)
-        if val is not None:
-            fallback_used = True
-            cache.set(cache_key, val)
-            return val
-    except Exception as e:
-        logging.debug(f"PhyloP fallback load error: {e}")
+    # Do not serve synthetic fallback PhyloP conservation arrays
     fallback_used = True
     return None
 
@@ -835,6 +790,90 @@ def fetch_clinvar_variants(chrom: str, pos: int, ref: str, alt: str, force_live:
     # Fallback to local data if available
     fallback_used = True
     return None
+
+
+def fetch_clinvar_region_variants(
+    chrom: str, pos: int, window: int = 50000, max_results: int = 25, force_live: bool = False
+) -> Optional[List[Dict[str, Any]]]:
+    """Fetch real ClinVar variants in [pos - window, pos + window] (GRCh38) via NCBI E-utilities.
+    Returns a list of variant dicts (possibly empty) on success, or None if the API lookup fails.
+    """
+    cache_key = f"clinvar_region:{chrom}:{pos}:{window}"
+    if not force_live:
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+    clean_chrom = chrom.replace("chr", "")
+    start = max(1, pos - window)
+    end = pos + window
+
+    try:
+        search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+        search_resp = SESSION.get(
+            search_url,
+            params={
+                "db": "clinvar",
+                "term": f"{clean_chrom}[CHR] AND {start}:{end}[CHRPOS38]",
+                "retmode": "json",
+                "retmax": max_results,
+            },
+            timeout=15,
+        )
+        if search_resp.status_code != 200:
+            return None
+
+        id_list = search_resp.json().get("esearchresult", {}).get("idlist", [])
+        if not id_list:
+            cache.set(cache_key, [])
+            return []
+
+        summary_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
+        summary_resp = SESSION.get(
+            summary_url,
+            params={"db": "clinvar", "id": ",".join(id_list[:max_results]), "retmode": "json"},
+            timeout=15,
+        )
+        if summary_resp.status_code != 200:
+            return None
+
+        result_data = summary_resp.json().get("result", {})
+        variants: List[Dict[str, Any]] = []
+        for uid in id_list[:max_results]:
+            item = result_data.get(uid)
+            if not isinstance(item, dict):
+                continue
+            vpos = None
+            for vs in item.get("variation_set", []):
+                for loc in vs.get("variation_loc", []):
+                    if loc.get("assembly_name") == "GRCh38" and loc.get("start"):
+                        try:
+                            vpos = int(loc["start"])
+                            break
+                        except (TypeError, ValueError):
+                            pass
+                if vpos is not None:
+                    break
+            if vpos is None:
+                continue
+
+            sig = (
+                item.get("germline_classification", {}).get("description")
+                or item.get("clinical_significance", {}).get("description")
+                or "Uncertain significance"
+            )
+            variants.append({
+                "variation_id": uid,
+                "pos": vpos,
+                "title": item.get("title", f"ClinVar:{uid}"),
+                "clinical_significance": sig,
+            })
+
+        cache.set(cache_key, variants)
+        return variants
+    except Exception as e:
+        logging.debug(f"ClinVar region API error: {e}")
+        return None
 
 @rate_limit(calls=3, period=1.0)
 @retry_on_failure(retries=3, backoff=2.0)

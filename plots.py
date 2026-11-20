@@ -29,27 +29,47 @@ _LAYOUT = dict(
 )
 
 
+def _unavailable_figure(title: str, message: str, height: int = 360) -> go.Figure:
+    """Return a clean placeholder figure when real data is unavailable."""
+    fig = go.Figure()
+    fig.add_annotation(
+        text=message,
+        x=0.5,
+        y=0.5,
+        xref="paper",
+        yref="paper",
+        showarrow=False,
+        font=dict(size=14, color=C["text_light"]),
+    )
+    fig.update_layout(
+        title=title,
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False),
+        height=height,
+        **_LAYOUT,
+    )
+    return fig
+
+
 # ── Plot A: Multi-Track Genomic Browser ───────────────────────────────────────
 def plot_variant_impact_profile(data: dict) -> go.Figure:
     """
-    3-track figure: (1) ΔRNA-seq impact, (2) PhyloP conservation, (3) Gene structure.
-    Adds ±1 SD ribbon from background and variant site annotation.
+    3-track figure: (1) ΔRNA-seq impact, (2) Gene structure, (3) PhyloP conservation.
+    Draws ±1 SD ribbon only when real pre-computed background exists, and marks PhyloP
+    as unavailable if UCSC lookup failed.
     """
     curve   = data.get("curve", {})
     metrics = data.get("metrics", {})
     tracks  = data.get("tracks", {})
     bg      = data.get("background_distribution", {})
 
-    x   = np.array(curve.get("x", []))
-    y   = np.array(curve.get("y", []))
-    cons = np.array(tracks.get("conservation", np.zeros(len(x))))
+    x     = np.array(curve.get("x", []))
+    y     = np.array(curve.get("y", []))
+    raw_cons = tracks.get("conservation")
+    cons  = np.array(raw_cons) if raw_cons is not None else None
     exons = tracks.get("exons", [])
 
-    bg_deltas  = bg.get("background_deltas", [])
-    bg_mean    = float(np.mean(bg_deltas)) if bg_deltas else 0
-    bg_std     = float(np.std(bg_deltas))  if bg_deltas else 0.5
-    ribbon_hi  = np.full_like(y, bg_mean + bg_std)
-    ribbon_lo  = np.full_like(y, -(bg_mean + bg_std))
+    bg_deltas = bg.get("background_deltas")
 
     fig = make_subplots(
         rows=3, cols=1,
@@ -63,14 +83,19 @@ def plot_variant_impact_profile(data: dict) -> go.Figure:
         ),
     )
 
-    # — Track 1: ribbon then signal ———————————————————————————
-    fig.add_trace(go.Scatter(
-        x=np.concatenate([x, x[::-1]]),
-        y=np.concatenate([ribbon_hi, ribbon_lo[::-1]]),
-        fill="toself", fillcolor="rgba(91,133,170,0.12)",
-        line=dict(width=0), name="±1 SD background",
-        hoverinfo="skip", showlegend=True,
-    ), row=1, col=1)
+    # — Track 1: optional real background ribbon then signal —————
+    if bg_deltas and len(bg_deltas) > 1 and len(x):
+        bg_mean   = float(np.mean(bg_deltas))
+        bg_std    = float(np.std(bg_deltas))
+        ribbon_hi = np.full_like(y, bg_mean + bg_std)
+        ribbon_lo = np.full_like(y, -(bg_mean + bg_std))
+        fig.add_trace(go.Scatter(
+            x=np.concatenate([x, x[::-1]]),
+            y=np.concatenate([ribbon_hi, ribbon_lo[::-1]]),
+            fill="toself", fillcolor="rgba(91,133,170,0.12)",
+            line=dict(width=0), name="±1 SD background",
+            hoverinfo="skip", showlegend=True,
+        ), row=1, col=1)
 
     fig.add_trace(go.Scatter(
         x=x, y=y, mode="lines",
@@ -104,16 +129,16 @@ def plot_variant_impact_profile(data: dict) -> go.Figure:
                     fillcolor=C["secondary"], opacity=0.85,
                     line=dict(color=C["secondary"]), row=2, col=1)
     else:
-        fig.add_annotation(text="Non-coding region (no exons in window)",
+        fig.add_annotation(text="No exon annotations returned in window",
                            x=0, y=0, showarrow=False,
                            font=dict(color=C["text_light"]), row=2, col=1)
 
     fig.update_yaxes(showticklabels=False, range=[-1, 1], row=2, col=1)
 
     # — Track 3: PhyloP conservation ————————————————————————————
-    pos_mask = cons >= 0
-    neg_mask = cons < 0
-    if len(x) == len(cons):
+    if cons is not None and len(x) == len(cons) and len(cons) > 0:
+        pos_mask = cons >= 0
+        neg_mask = cons < 0
         fig.add_trace(go.Bar(
             x=x[pos_mask], y=cons[pos_mask],
             name="Conserved (+)", marker_color=C["success"], opacity=0.8,
@@ -124,8 +149,12 @@ def plot_variant_impact_profile(data: dict) -> go.Figure:
             name="Fast-evolving (−)", marker_color=C["danger"], opacity=0.8,
             hovertemplate="PhyloP: %{y:.2f}<extra></extra>",
         ), row=3, col=1)
-
-    fig.add_hline(y=0, line_dash="solid", line_color=C["text_light"], opacity=0.5, row=3, col=1)
+        fig.add_hline(y=0, line_dash="solid", line_color=C["text_light"], opacity=0.5, row=3, col=1)
+    else:
+        fig.add_annotation(text="PhyloP conservation data unavailable (UCSC API failed)",
+                           x=0, y=0, showarrow=False,
+                           font=dict(color=C["text_light"]), row=3, col=1)
+        fig.update_yaxes(showticklabels=False, range=[-1, 1], row=3, col=1)
 
     fig.update_layout(
         height=720,
@@ -145,16 +174,18 @@ def plot_background_kde(data: dict) -> go.Figure:
     bg      = data.get("background_distribution", {})
     metrics = data.get("metrics", {})
 
-    deltas      = np.array(bg.get("background_deltas", []))
+    raw_deltas  = bg.get("background_deltas")
+    deltas      = np.array(raw_deltas) if raw_deltas is not None else np.array([])
     var_delta   = abs(metrics.get("max_delta", 0))
-    z_score     = metrics.get("z_score", 0)
-    percentile  = metrics.get("percentile", 0)
+    z_score     = metrics.get("z_score")
+    percentile  = metrics.get("percentile")
 
-    if len(deltas) < 2:
-        fig = go.Figure()
-        fig.add_annotation(text="Insufficient background data", x=0.5, y=0.5,
-                           showarrow=False, xref="paper", yref="paper")
-        return fig
+    if len(deltas) < 2 or z_score is None or percentile is None:
+        return _unavailable_figure(
+            "Variant Impact vs. Gene Background Distribution",
+            "Unavailable — no pre-computed gene background distribution",
+            height=400,
+        )
 
     kde_x = np.linspace(0, max(deltas.max(), var_delta) * 1.3, 300)
     kde   = stats.gaussian_kde(deltas, bw_method=0.4)
@@ -201,94 +232,101 @@ def plot_background_kde(data: dict) -> go.Figure:
 # ── Plot C: Pathogenicity Radar ────────────────────────────────────────────────
 def plot_pathogenicity_radar(data: dict) -> go.Figure:
     """
-    Radar chart comparing 5 evidence dimensions to the known-pathogenic median.
+    Radar chart of available normalized evidence dimensions (only includes non-missing metrics).
     """
     metrics = data.get("metrics", {})
+    cons_arr = data.get("tracks", {}).get("conservation")
+    gnomad_raw = metrics.get("gnomad_freq")
+    z_raw = metrics.get("z_score")
 
-    # Normalise raw values to 0–1
-    conservation_raw = float(np.clip(data.get("tracks", {}).get("conservation", [0.5])[0] / 4, 0, 1))
-    gnomad_raw       = metrics.get("gnomad_freq", 0)
-    rarity           = float(np.clip(1 - np.log10(max(gnomad_raw, 1e-8)) / -8, 0, 1))
-    impact           = float(np.clip(abs(metrics.get("max_delta", 0)) / 1.0, 0, 1))
-    z_norm           = float(np.clip((metrics.get("z_score", 0) + 3) / 6, 0, 1))
-    confidence       = float(np.clip(metrics.get("confidence", 50) / 100, 0, 1))
+    dims, vals = [], []
+    if cons_arr is not None and len(cons_arr) > 0:
+        dims.append("Conservation")
+        vals.append(float(np.clip(np.mean(cons_arr) / 4.0, 0, 1)))
+    if gnomad_raw is not None:
+        dims.append("Population Rarity")
+        vals.append(float(np.clip(1 - np.log10(max(gnomad_raw, 1e-8)) / -8, 0, 1)))
+    dims.append("Model Impact")
+    vals.append(float(np.clip(abs(metrics.get("max_delta", 0)) / 1.0, 0, 1)))
+    if z_raw is not None:
+        dims.append("Z-Score")
+        vals.append(float(np.clip((z_raw + 3) / 6, 0, 1)))
+    dims.append("Data Completeness")
+    vals.append(float(np.clip(metrics.get("confidence", 0) / 100.0, 0, 1)))
 
-    dims = ["Conservation", "Population Rarity", "Model Impact", "Z-Score", "Confidence"]
-    this_var = [conservation_raw, rarity, impact, z_norm, confidence]
-    known_path = [0.85, 0.90, 0.75, 0.80, 0.90]  # Median known-pathogenic profile
+    if len(dims) < 3:
+        return _unavailable_figure(
+            "Multi-Evidence Profile",
+            "Unavailable — fewer than 3 real evidence dimensions available",
+            height=420,
+        )
 
     fig = go.Figure()
-    for vals, name, colour in zip(
-        [known_path, this_var],
-        ["Known Pathogenic (median)", "This Variant"],
-        ["rgba(91,133,170,0.4)", "rgba(244,96,54,0.6)"],
-    ):
-        fig.add_trace(go.Scatterpolar(
-            r=vals + [vals[0]],
-            theta=dims + [dims[0]],
-            fill="toself",
-            name=name,
-            fillcolor=colour,
-            line=dict(width=2),
-        ))
+    fig.add_trace(go.Scatterpolar(
+        r=vals + [vals[0]],
+        theta=dims + [dims[0]],
+        fill="toself",
+        name="This Variant",
+        fillcolor="rgba(244,96,54,0.5)",
+        line=dict(color=C["primary"], width=2),
+    ))
 
     fig.update_layout(
         polar=dict(radialaxis=dict(visible=True, range=[0, 1], tickfont_size=10)),
-        title="Multi-Evidence Pathogenicity Profile",
+        title="Multi-Evidence Profile (Available Sources Only)",
         height=420,
-        legend=dict(orientation="h", y=-0.08),
+        showlegend=False,
         **_LAYOUT,
     )
     return fig
 
 
 # ── Plot D: Evidence Stack + Classification Badge ─────────────────────────────
-def plot_evidence_stack(data: dict) -> tuple[go.Figure, str]:
+def plot_evidence_stack(data: dict) -> tuple[go.Figure, str, str]:
     """
-    Horizontal stacked bar of evidence components; returns (fig, classification).
-    Classification: LIKELY PATHOGENIC / VUS / LIKELY BENIGN.
+    Horizontal stacked bar of available evidence components; returns (fig, label, badge_color).
     """
     metrics = data.get("metrics", {})
+    gnomad_raw = metrics.get("gnomad_freq")
+    conserve_raw = data.get("tracks", {}).get("conservation")
 
-    gnomad_raw   = metrics.get("gnomad_freq", 0)
-    rarity_score = float(np.clip(1 - np.log10(max(gnomad_raw, 1e-8)) / -8, 0, 1)) * 100
+    components = []
+    if gnomad_raw is not None:
+        rarity_score = float(np.clip(1 - np.log10(max(gnomad_raw, 1e-8)) / -8, 0, 1)) * 100
+        components.append(("Population Rarity", rarity_score, C["primary"]))
+
     impact_score = float(np.clip(abs(metrics.get("max_delta", 0)) / 1.0, 0, 1)) * 100
-    conserve_raw = data.get("tracks", {}).get("conservation", [0.5])
-    cons_score   = float(np.clip(np.mean(conserve_raw) / 4, 0, 1)) * 100
+    components.append(("Model Impact", impact_score, C["secondary"]))
 
-    total = rarity_score + impact_score + cons_score
-    if total > 0:
-        r_pct = rarity_score / total * 100
-        i_pct = impact_score / total * 100
-        c_pct = cons_score   / total * 100
-    else:
-        r_pct = i_pct = c_pct = 33.3
+    if conserve_raw is not None and len(conserve_raw) > 0:
+        cons_score = float(np.clip(np.mean(conserve_raw) / 4.0, 0, 1)) * 100
+        components.append(("Conservation", cons_score, C["success"]))
 
-    # Classification heuristic
-    raw_score = (rarity_score + impact_score + cons_score) / 3
-    if raw_score >= 65:
-        label = "LIKELY PATHOGENIC"
+    total = sum(s for _, s, _ in components)
+    raw_score = total / len(components) if components else 0.0
+    if len(components) < 2:
+        label = "INCOMPLETE DATA"
+        badge_color = C["text_light"]
+    elif raw_score >= 65:
+        label = "HIGH PRIORITY"
         badge_color = C["danger"]
     elif raw_score >= 40:
-        label = "VUS"
+        label = "MODERATE / VUS"
         badge_color = C["warning"]
     else:
-        label = "LIKELY BENIGN"
+        label = "LOW PRIORITY"
         badge_color = C["success"]
 
     fig = go.Figure()
-    for val, name, col in zip(
-        [r_pct, i_pct, c_pct],
-        ["Population Rarity", "Model Impact", "Conservation"],
-        [C["primary"], C["secondary"], C["success"]],
-    ):
-        fig.add_trace(go.Bar(orientation="h", x=[val], y=["Evidence"],
+    for name, score, col in components:
+        pct = (score / total * 100.0) if total > 0 else (100.0 / len(components))
+        fig.add_trace(go.Bar(orientation="h", x=[pct], y=["Evidence"],
                              name=name, marker_color=col,
-                             hovertemplate=f"{name}: {val:.1f}%<extra></extra>"))
+                             hovertemplate=f"{name}: {pct:.1f}%<extra></extra>"))
 
     fig.update_layout(
         barmode="stack",
-        title="Pathogenicity Evidence Breakdown",
+        title="Available Evidence Breakdown",
         xaxis_title="Relative Evidence Contribution (%)",
         height=200,
         xaxis=dict(range=[0, 100]),
@@ -302,39 +340,51 @@ def plot_evidence_stack(data: dict) -> tuple[go.Figure, str]:
 # ── Plot E: gnomAD Allele Frequency Context ────────────────────────────────────
 def plot_gnomad_context(data: dict) -> go.Figure:
     """
-    Background histogram of log10(AF) showing where the variant's AF falls.
-    Uses a simulated background (realistic gnomAD distribution).
+    Plots the variant's real gnomAD allele frequency against standard rarity thresholds
+    (no simulated gnomAD background distribution).
     """
-    metrics   = data.get("metrics", {})
-    var_freq  = metrics.get("gnomad_freq", 0) or 1e-8
+    metrics = data.get("metrics", {})
+    var_freq = metrics.get("gnomad_freq")
 
-    # Simulate realistic gnomAD log-AF distribution (right-skewed, peak ~1e-4 to 1e-2)
-    rng  = np.random.default_rng(42)
-    sim  = np.concatenate([rng.normal(-5, 1.2, 1800), rng.normal(-2.5, 0.8, 200)])
-    sim  = np.clip(sim, -8, 0)
+    if var_freq is None:
+        return _unavailable_figure(
+            "Allele Frequency Context (gnomAD)",
+            "Unavailable — gnomAD and MyVariant.info allele frequency lookups returned no data",
+            height=380,
+        )
 
-    var_log = np.log10(var_freq)
-    pct_rarer = float(np.mean(sim < var_log) * 100)
+    safe_freq = max(float(var_freq), 1e-8)
+    var_log = float(np.log10(safe_freq))
+
+    tiers = [
+        (-8, -4, "Ultra-rare (<1e-4)", "rgba(196,64,39,0.16)"),
+        (-4, -3, "Rare (1e-4–1e-3)", "rgba(244,96,54,0.14)"),
+        (-3, -2, "Low-freq (1e-3–1e-2)", "rgba(233,196,106,0.18)"),
+        (-2, 0,  "Common (≥1e-2)", "rgba(42,157,143,0.16)"),
+    ]
 
     fig = go.Figure()
-    fig.add_trace(go.Histogram(
-        x=sim, nbinsx=60,
-        name="gnomAD variants (simulated)",
-        marker_color=C["secondary"], opacity=0.7,
-        hovertemplate="log₁₀(AF) bin: %{x:.1f}<br>Count: %{y}<extra></extra>",
+    for x0, x1, tier_label, fill in tiers:
+        fig.add_vrect(
+            x0=x0, x1=x1, fillcolor=fill, line_width=0,
+            annotation_text=tier_label, annotation_position="bottom",
+            annotation_font_size=10,
+        )
+
+    fig.add_trace(go.Scatter(
+        x=[var_log], y=[0.5], mode="markers+text",
+        marker=dict(color=C["primary"], size=16, symbol="diamond", line=dict(color="white", width=2)),
+        text=[f"AF = {var_freq:.2e}"],
+        textposition="top center",
+        name="This variant",
+        hovertemplate=f"gnomAD AF: {var_freq:.3e}<br>log₁₀(AF): {var_log:.2f}<extra></extra>",
     ))
-    fig.add_vline(
-        x=var_log, line_dash="dash", line_color=C["primary"], line_width=2.5,
-        annotation_text=f"This variant<br>AF={var_freq:.2e}<br>Rarer than {100-pct_rarer:.1f}%",
-        annotation_position="top left",
-        annotation=dict(font_color=C["primary"], bgcolor="rgba(255,255,255,0.85)"),
-    )
+
     fig.update_layout(
-        title="Allele Frequency in Population Context (gnomAD)",
-        xaxis_title="log₁₀(Allele Frequency)",
-        yaxis_title="Number of Variants",
+        title="Allele Frequency vs. Standard Population Rarity Tiers (gnomAD)",
+        xaxis=dict(title="log₁₀(Allele Frequency)", range=[-8, 0]),
+        yaxis=dict(visible=False, range=[0, 1]),
         height=380,
-        bargap=0.05,
         showlegend=False,
         **_LAYOUT,
     )
@@ -344,53 +394,79 @@ def plot_gnomad_context(data: dict) -> go.Figure:
 # ── Plot F: ClinVar Lollipop Plot ─────────────────────────────────────────────
 def plot_clinvar_lollipop(data: dict, chrom: str, pos: int) -> go.Figure:
     """
-    Lollipop plot of nearby ClinVar variants. Uses mocked data when live API unavailable.
+    Lollipop plot of real nearby ClinVar variants (±50 kb, GRCh38) from NCBI ClinVar API.
+    Displays an explicit unavailable/empty state when no real records are returned.
     """
-    metrics = data.get("metrics", {})
+    window = 50000
+    clinvar_region = data.get("clinvar_region")
 
-    # Try to use related data from the response; fall back to realistic mock
+    if clinvar_region is None:
+        return _unavailable_figure(
+            f"ClinVar Variants in Region ({chrom}:{pos-window:,}–{pos+window:,})",
+            "Unavailable — NCBI ClinVar region lookup failed",
+            height=400,
+        )
+
+    if len(clinvar_region) == 0:
+        return _unavailable_figure(
+            f"ClinVar Variants in Region ({chrom}:{pos-window:,}–{pos+window:,})",
+            "No ClinVar variants reported in this ±50 kb GRCh38 window",
+            height=400,
+        )
+
     SIG_MAP = {
-        "Pathogenic": (3, C["danger"]),
-        "Likely pathogenic": (2, "#E07050"),
-        "VUS": (1, C["warning"]),
-        "Likely benign": (-1, "#80B0D0"),
-        "Benign": (-2, C["success"]),
+        "pathogenic": (3, C["danger"], "Pathogenic"),
+        "likely pathogenic": (2, "#E07050", "Likely pathogenic"),
+        "uncertain": (1, C["warning"], "VUS"),
+        "conflicting": (1, C["warning"], "Conflicting / VUS"),
+        "likely benign": (-1, "#80B0D0", "Likely benign"),
+        "benign": (-2, C["success"], "Benign"),
     }
 
-    # Realistic mock based on common HCM variants near MYH9/MYBPC3
-    np.random.seed(pos % 9973)
-    window = 50000
-    n_mock = 18
-    mock_positions = sorted(np.random.randint(pos - window, pos + window, n_mock).tolist() + [pos])
-    mock_sigs      = np.random.choice(list(SIG_MAP.keys()), len(mock_positions),
-                                      p=[0.3, 0.15, 0.25, 0.15, 0.15])
+    def _classify(sig_text: str):
+        s = (sig_text or "").lower()
+        for key in ("likely pathogenic", "pathogenic", "likely benign", "benign", "conflicting", "uncertain"):
+            if key in s:
+                return SIG_MAP[key]
+        return (0, C["text_light"], sig_text or "Other")
 
     fig = go.Figure()
-    for mpos, msig in zip(mock_positions, mock_sigs):
-        y_val, col = SIG_MAP.get(msig, (0, C["text_light"]))
-        is_query = (mpos == pos)
-        fig.add_shape(type="line",
-            x0=mpos, x1=mpos, y0=0, y1=y_val,
-            line=dict(color=col, width=1.5))
+    for entry in clinvar_region:
+        vpos = entry.get("pos")
+        if vpos is None:
+            continue
+        sig_raw = entry.get("clinical_significance", "Uncertain significance")
+        title = entry.get("title", "")
+        y_val, col, _ = _classify(sig_raw)
+        is_query = (vpos == pos)
+        fig.add_shape(type="line", x0=vpos, x1=vpos, y0=0, y1=y_val, line=dict(color=col, width=1.5))
         fig.add_trace(go.Scatter(
-            x=[mpos], y=[y_val], mode="markers",
-            marker=dict(color=col, size=16 if is_query else 10,
+            x=[vpos], y=[y_val], mode="markers",
+            marker=dict(color=col, size=15 if is_query else 10,
                         symbol="star" if is_query else "circle",
-                        line=dict(color="white", width=2)),
-            name=msig if not is_query else "★ This variant",
-            hovertemplate=f"Pos: {mpos:,}<br>Classification: {msig}<extra></extra>",
-            showlegend=is_query,
+                        line=dict(color="white", width=1.5)),
+            name=sig_raw,
+            hovertemplate=f"{title}<br>Pos: {vpos:,}<br>ClinVar: {sig_raw}<extra></extra>",
+            showlegend=False,
         ))
 
+    fig.add_vline(x=pos, line_dash="dot", line_color=C["primary"], opacity=0.8,
+                  annotation_text="Query site", annotation_position="top right")
     fig.add_hline(y=0, line_color=C["text_light"], opacity=0.5)
-    for label, (y_val, col) in SIG_MAP.items():
+
+    for y_val, col, label in [
+        (3, C["danger"], "Pathogenic"),
+        (2, "#E07050", "Likely pathogenic"),
+        (1, C["warning"], "VUS / Conflicting"),
+        (-1, "#80B0D0", "Likely benign"),
+        (-2, C["success"], "Benign"),
+    ]:
         fig.add_annotation(x=pos - window * 0.95, y=y_val,
                            text=label, showarrow=False,
-                           font=dict(color=col, size=10),
-                           xanchor="left")
+                           font=dict(color=col, size=10), xanchor="left")
 
     fig.update_layout(
-        title=f"ClinVar Variants in Region ({chrom}:{pos-window:,}–{pos+window:,})",
+        title=f"ClinVar Variants in Region ({chrom}:{pos-window:,}–{pos+window:,}) — NCBI Live Data",
         xaxis_title="Genomic Position (GRCh38)",
         yaxis=dict(visible=False, range=[-3.5, 4]),
         showlegend=False,
@@ -445,42 +521,20 @@ def plot_tissue_heatmap(tissue_effects: list) -> go.Figure:
 # ── Plot H: Enformer Top Tracks Heatmap ──────────────────────────────────────
 def plot_enformer_tracks(data: dict) -> go.Figure:
     """
-    Heatmap of the top 20 Enformer output tracks with highest absolute delta.
-    Uses the top-level tissue_effects as a proxy when raw tracks not available.
+    Heatmap of the real top-20 Enformer output tracks with highest |delta| at the variant bin.
+    Displays an explicit unavailable state when real per-track outputs are absent.
     """
-    tissue_effects = data.get("tissue_effects", [])
-    metrics        = data.get("metrics", {})
-    base_delta     = abs(metrics.get("max_delta", 0.1))
+    top_tracks = data.get("enformer_top_tracks")
+    if not top_tracks:
+        return _unavailable_figure(
+            "Top 20 Enformer Tracks — Differential Signal",
+            "Unavailable — real per-track Enformer deltas were not returned",
+            height=400,
+        )
 
-    # Generate realistic track names and values
-    TRACK_TEMPLATES = [
-        "DNase-seq:Heart_LV", "H3K27ac:Heart_RA", "H3K4me3:Aorta",
-        "CAGE:Heart_apex", "ATAC-seq:Cardiomyocytes", "H3K36me3:Heart_LV",
-        "RNA-seq:Myocardium", "DNase-seq:Aorta", "H3K27me3:Heart_LV",
-        "CAGE:Atrium", "H3K4me1:Smooth_muscle", "CTCF:Heart_LV",
-        "RNA-seq:Pericardium", "DNase-seq:Liver", "H3K27ac:Brain",
-        "CAGE:Kidney", "ATAC-seq:Skeletal_muscle", "H3K4me3:Liver",
-        "RNA-seq:Lung", "DNase-seq:Brain",
-    ]
-
-    rng = np.random.default_rng(int(base_delta * 1000) % 999)
-    # Cardiac tracks get higher signal, others lower
-    track_deltas = []
-    for t in TRACK_TEMPLATES:
-        if any(k in t for k in ["Heart", "Cardio", "Aorta", "Atrium", "Myocardium", "Pericardium"]):
-            track_deltas.append(base_delta * rng.uniform(0.7, 1.3))
-        else:
-            track_deltas.append(base_delta * rng.uniform(0.05, 0.4))
-
-    track_deltas = np.array(track_deltas)
-    # Sign: reference-decreasing = negative, alt-increasing = positive
-    signs = rng.choice([-1, 1], size=len(track_deltas), p=[0.3, 0.7])
-    signed_deltas = track_deltas * signs
-
-    # Sort by absolute value
-    order = np.argsort(np.abs(signed_deltas))[::-1][:20]
-    y_labels = [TRACK_TEMPLATES[i] for i in order]
-    z_vals   = [[signed_deltas[i]] for i in order]
+    y_labels = [t["track"] for t in top_tracks[:20]]
+    signed_deltas = [float(t["delta"]) for t in top_tracks[:20]]
+    z_vals = [[v] for v in signed_deltas]
 
     fig = go.Figure(go.Heatmap(
         z=z_vals,
@@ -494,15 +548,15 @@ def plot_enformer_tracks(data: dict) -> go.Figure:
         zmid=0,
         colorbar=dict(title="Δ Signal", thickness=12, len=0.8),
         hovertemplate="Track: %{y}<br>Δ: %{z:.4f}<extra></extra>",
-        text=[[f"{signed_deltas[i]:+.3f}"] for i in order],
+        text=[[f"{v:+.4f}"] for v in signed_deltas],
         texttemplate="%{text}",
         textfont=dict(size=10),
     ))
 
     fig.update_layout(
-        title="Top 20 Enformer Tracks — Differential Accessibility",
+        title="Top 20 Enformer Human Tracks — Real Differential Signal",
         xaxis=dict(visible=False),
-        yaxis=dict(tickfont=dict(size=10)),
+        yaxis=dict(tickfont=dict(size=10), autorange="reversed"),
         height=600,
         **_LAYOUT,
     )

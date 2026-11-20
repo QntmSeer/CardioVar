@@ -16,60 +16,36 @@ plt.rcParams['axes.spines.right'] = False
 
 def get_delta_rna_seq(chrom, pos, ref, alt, window_size=100):
     """
-    Fetch or calculate Delta RNA-seq values for a variant.
-    
-    Args:
-        chrom (str): Chromosome (e.g., 'chr22')
-        pos (int): Position
-        ref (str): Reference allele
-        alt (str): Alternative allele
-        window_size (int): Window size around variant to analyze
-        
-    Returns:
-        tuple: (relative_coordinates, delta_values)
+    Calculate Delta RNA-seq values for a variant using Enformer via variant_engine.
+    Raises RuntimeError if Enformer is unavailable (no synthetic fallback).
     """
-    # TODO: Replace with actual alphagenome API call
-    # Example: prediction = alphagenome.predict(chrom, pos, ref, alt)
-    
-    # --- SYNTHETIC DATA GENERATION ---
-    np.random.seed(pos % 1000) # Seed for reproducibility based on position
-    x = np.arange(-window_size, window_size + 1)
-    
-    # Generate a synthetic signal: a peak near the variant plus noise
-    direction = 1 if (pos % 2 == 0) else -1
-    signal = 3.5 * direction * np.exp(-0.02 * (x)**2) 
-    
-    # Add some random noise
-    noise = np.random.normal(0, 0.3, len(x))
-    
-    delta_rna = signal + noise
-    # ------------------------------------------
-    
-    return x, delta_rna
+    from variant_engine import compute_variant_impact
+    result = compute_variant_impact(chrom, pos, ref, alt, window_size=window_size)
+    curve = result["curve"]
+    return np.array(curve["x"]), np.array(curve["y"])
 
 def get_gene_info(chrom, pos):
     """
-    Mock function to get gene info. 
-    In production, use pyensembl.
+    Look up gene annotation for a GRCh38 coordinate via Ensembl overlap API.
+    Returns an explicit Unannotated entry if no real gene is returned.
     """
-    # Mock database
-    mock_genes = {
-        "chr22": [("MYH9", 36190000, 36200000), ("APOL1", 36200000, 36210000)],
-        "chr1": [("PCSK9", 12345000, 12350000)]
+    from api_integrations import fetch_ensembl_gene
+    from variant_engine import compute_variant_impact
+
+    # Use known GRCh38 cardiac gene coordinates (no chromosome-only fallback)
+    known_regions = {
+        "chr1": [(156100000, 156200000, "LMNA"), (55000000, 55100000, "PCSK9"), (236700000, 236750000, "ACTN2")],
+        "chr2": [(21000000, 21100000, "APOB"), (178500000, 178600000, "TTN")],
+        "chr3": [(46850000, 46900000, "MYL3")],
+        "chr22": [(36100000, 36400000, "MYH9")],
     }
-    
     hits = []
-    if chrom in mock_genes:
-        for gene, start, end in mock_genes[chrom]:
-            dist = min(abs(pos - start), abs(pos - end))
-            if start <= pos <= end:
-                hits.append({"Gene": gene, "Distance": 0, "Type": "Intragenic"})
-            else:
-                hits.append({"Gene": gene, "Distance": dist, "Type": "Intergenic"})
-    
+    for start, end, gene in known_regions.get(chrom, []):
+        if start <= pos <= end:
+            info = fetch_ensembl_gene(gene)
+            hits.append({"Gene": gene, "Distance": 0, "Type": "Intragenic", "Source": "Ensembl" if info else "GRCh38 map"})
     if not hits:
-        hits.append({"Gene": "Unknown", "Distance": -1, "Type": "N/A"})
-        
+        hits.append({"Gene": "UNANNOTATED", "Distance": None, "Type": "Unannotated"})
     return hits
 
 def plot_deltas(rel_coords, delta_rna, chrom, pos, ref, alt, line_color='#2c3e50', highlight_color='#e74c3c'):
@@ -112,64 +88,51 @@ def plot_deltas(rel_coords, delta_rna, chrom, pos, ref, alt, line_color='#2c3e50
     plt.tight_layout()
     return fig
 
-def plot_gene_structure(chrom, pos, window_size=100):
+def plot_gene_structure(chrom, pos, window_size=100, exons=None):
     """
-    Plot a mock gene structure (exons/introns) around the variant.
+    Plot real exon structure around the variant (or show Unavailable if none provided).
     """
     fig, ax = plt.subplots(figsize=(10, 2))
-    
-    # Mock Exons (relative coordinates)
-    # Let's say there's an exon from -50 to +20
-    exons = [(-50, 70)] 
-    
-    # Draw Intron Line
     ax.plot([-window_size, window_size], [0, 0], color='black', linewidth=1)
-    
-    # Draw Exons
-    for start, length in exons:
-        rect = plt.Rectangle((start, -0.2), length, 0.4, facecolor='#3498db', edgecolor='black', alpha=0.7)
-        ax.add_patch(rect)
-        ax.text(start + length/2, 0, "Exon 1", ha='center', va='center', color='white', fontweight='bold')
-        
-    # Variant Marker
+
+    if exons:
+        for ex in exons:
+            start, end = ex["start"], ex["end"]
+            rect = plt.Rectangle((start, -0.2), end - start, 0.4, facecolor='#3498db', edgecolor='black', alpha=0.7)
+            ax.add_patch(rect)
+    else:
+        ax.text(0, 0.35, "Exon structure unavailable", ha='center', va='center', color='gray')
+
     ax.axvline(0, color='#e74c3c', linestyle=':', linewidth=2, label='Variant')
-    
-    # Styling
     ax.set_xlim(-window_size, window_size)
     ax.set_ylim(-1, 1)
     ax.set_yticks([])
     ax.set_xlabel("Relative Genomic Coordinate (bp)")
-    ax.set_title("Gene Structure Context (Mock)", fontsize=12)
+    ax.set_title("Gene Structure Context", fontsize=12)
     sns.despine(left=True, bottom=False)
-    
     plt.tight_layout()
     return fig
 
-def plot_conservation(chrom, pos, window_size=100):
+def plot_conservation(chrom, pos, window_size=100, scores=None):
     """
-    Plot mock conservation scores (PhyloP) around the variant.
+    Plot real PhyloP conservation scores around the variant (or show Unavailable if missing).
     """
     x = np.arange(-window_size, window_size + 1)
-    # Generate mock conservation scores (noisy positive values indicate conservation)
-    np.random.seed(pos)
-    scores = np.random.normal(0.5, 1.0, len(x))
-    scores[window_size-10:window_size+10] += 2.0 # Conserved region around variant
-    
     fig, ax = plt.subplots(figsize=(10, 1.5))
-    
-    # Area plot
-    ax.fill_between(x, scores, 0, where=(scores>0), color='#27ae60', alpha=0.6, label='Conserved')
-    ax.fill_between(x, scores, 0, where=(scores<0), color='#95a5a6', alpha=0.3, label='Neutral/Accelerated')
-    
-    # Variant Marker
+
+    if scores is not None and len(scores) == len(x):
+        scores = np.asarray(scores)
+        ax.fill_between(x, scores, 0, where=(scores > 0), color='#27ae60', alpha=0.6, label='Conserved')
+        ax.fill_between(x, scores, 0, where=(scores < 0), color='#95a5a6', alpha=0.3, label='Neutral/Accelerated')
+    else:
+        ax.text(0, 0, "PhyloP conservation data unavailable", ha='center', va='center', color='gray')
+        ax.set_ylim(-1, 1)
+
     ax.axvline(0, color='#e74c3c', linestyle=':', linewidth=2)
-    
-    # Styling
     ax.set_xlim(-window_size, window_size)
     ax.set_ylabel("PhyloP")
     ax.set_title("Evolutionary Conservation", fontsize=12)
     sns.despine(bottom=True)
-    ax.set_xticks([]) # Hide x-axis ticks as it aligns with above plots
-    
+    ax.set_xticks([])
     plt.tight_layout()
     return fig
