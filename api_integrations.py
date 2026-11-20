@@ -395,52 +395,6 @@ def fetch_ucsc_phylop(chrom: str, start: int, end: int, force_live: bool = False
     return None
 
 @retry_on_failure(retries=3, backoff=2.0)
-def fetch_gtex_expression(gene_symbol: str, force_live: bool = False) -> Optional[List[Dict[str, Any]]]:
-    """Fetch GTEx expression data with caching and TSV fallback."""
-    global fallback_used
-    cache_key = f"gtex:{gene_symbol}"
-    cached = cache.get(cache_key)
-    if cached is not None:
-        logging.debug(f"Cache hit for {cache_key}")
-        return cached
-
-    url = f"{GTEX_API}/expression/medianGeneExpression"
-    params = {"geneId": gene_symbol, "datasetId": "gtex_v8"}
-    try:
-        resp = SESSION.get(url, params=params, timeout=15)
-        if resp.status_code == 200:
-            data = resp.json()
-            if "medianGeneExpression" in data:
-                result = [
-                    {"tissue": item["tissueSiteDetailId"], "tpm": item["median"]}
-                    for item in data["medianGeneExpression"]
-                ]
-                cache.set(cache_key, result)
-                return result
-    except Exception as e:
-        logging.debug(f"GTEx API error: {e}")
-
-    if force_live:
-        logging.warning("Force live GTEx failed; not attempting fallback.")
-        fallback_used = True
-        return None
-
-    # Fallback TSV
-    try:
-        path = os.path.join(FALLBACK_DIR, "gtex_expression.tsv")
-        df = pd.read_csv(path, sep="\t")
-        rows = df[df["gene_symbol"].str.upper() == gene_symbol.upper()]
-        if not rows.empty:
-            result = rows[["tissue", "tpm"]].to_dict(orient="records")
-            fallback_used = True
-            cache.set(cache_key, result)
-            return result
-    except Exception as e:
-        logging.debug(f"GTEx fallback load error: {e}")
-    fallback_used = True
-    return None
-
-@retry_on_failure(retries=3, backoff=2.0)
 def fetch_genomic_sequence(chrom: str, start: int, end: int, force_live: bool = False) -> str:
     """Fetch raw DNA sequence from UCSC with caching and fallback (empty string)."""
     global fallback_used
@@ -636,33 +590,7 @@ def fetch_myvariant_info(chrom, pos, ref, alt):
 
 
 def fetch_single_cell_expression(gene_symbol: str) -> Optional[List[Dict[str, Any]]]:
-    """Fetch single-cell expression data from local curated dataset."""
-    global fallback_used
-    cache_key = f"single_cell:{gene_symbol}"
-    cached = cache.get(cache_key)
-    if cached is not None:
-        logging.debug(f"Cache hit for {cache_key}")
-        return cached
-
-    # Load from JSON
-    try:
-        path = os.path.join(FALLBACK_DIR, "single_cell_data.json")
-        if not os.path.exists(path):
-            logging.warning(f"Single cell data file not found at {path}")
-            return None
-            
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            
-        for entry in data:
-            if entry.get("symbol") == gene_symbol:
-                expr_data = entry.get("expression", [])
-                cache.set(cache_key, expr_data)
-                return expr_data
-                
-    except Exception as e:
-        logging.debug(f"Single cell data load error: {e}")
-        
+    """Single-cell expression lookup (returns None: no verified single-cell atlas is bundled)."""
     return None
 
 # ---------------------------------------------------------------------------
@@ -941,18 +869,19 @@ def fetch_dbsnp_variants(chrom: str, pos: int, ref: str, alt: str, force_live: b
 # ---------------------------------------------------------------------------
 # GTEx — Tissue Expression
 # ---------------------------------------------------------------------------
-def fetch_gtex_expression(gene_symbol: str, dataset: str = "gtex_v8") -> Optional[List[Dict]]:
+def fetch_gtex_expression(gene_symbol: str, dataset: str = "gtex_v8", force_live: bool = False) -> Optional[List[Dict]]:
     """
-    Fetch median TPM per tissue from GTEx v8 for a given gene symbol.
+    Fetch median TPM per tissue from GTEx v8 for a given gene symbol (no synthetic fallback).
 
     Returns:
         Sorted list of {tissue: str, tpm: float} dicts, or None on failure.
     """
     global fallback_used
     cache_key = f"gtex_expression:{gene_symbol}"
-    cached = cache.get(cache_key)
-    if cached:
-        return cached
+    if not force_live:
+        cached = cache.get(cache_key)
+        if cached:
+            return cached
 
     try:
         url = f"{GTEX_API}/expression/geneExpression"

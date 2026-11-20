@@ -15,12 +15,7 @@ def load_gene_annotations():
     with open("data/gene_annotations.json", "r") as f:
         return json.load(f)
 
-def load_related_variants():
-    with open("data/related_variants.json", "r") as f:
-        return json.load(f)
-
 GENE_DATA = load_gene_annotations()
-RELATED_DATA = load_related_variants()
 
 # Page Config
 st.set_page_config(
@@ -37,8 +32,13 @@ def get_gene_annotation(gene_symbol):
     return {"symbol": gene_symbol, "note": "No detailed annotations found."}
 
 def get_related_data(chrom, pos, ref, alt):
-    key = f"{chrom}:{pos}:{ref}:{alt}"
-    return RELATED_DATA.get(key, [])
+    """Fetch live ClinVar record for the variant (no static mock fallback)."""
+    try:
+        from api_integrations import fetch_clinvar_variants
+        rec = fetch_clinvar_variants(chrom, pos, ref, alt)
+        return [rec] if rec else []
+    except Exception:
+        return []
 
 def plot_deltas_from_data(data, chrom, pos, ref, alt, line_color, highlight_color):
     """Plot using data returned from variant engine."""
@@ -269,20 +269,14 @@ if run_btn:
                     ax_prot.text((domain['start']+domain['end'])/2, 0, domain['name'], 
                                ha='center', va='center', fontsize=8, color='white', fontweight='bold')
                 
-                var_aa_pos = int(prot_len * 0.4)
-                ax_prot.plot([var_aa_pos, var_aa_pos], [0.6, 1.2], color='#E74C3C', linewidth=2)
-                ax_prot.scatter([var_aa_pos], [1.2], color='#E74C3C', s=100, zorder=5, marker='v')
-                ax_prot.text(var_aa_pos, 1.4, 'Variant', ha='center', fontsize=9, color='#E74C3C', fontweight='bold')
-                
                 ax_prot.set_xlim(0, prot_len)
-                ax_prot.set_ylim(-0.5, 1.6)
+                ax_prot.set_ylim(-0.5, 1.0)
                 ax_prot.set_yticks([])
                 ax_prot.set_xlabel('Amino Acid Position')
                 ax_prot.set_title(f'{gene_sym} Protein Domains (Length: {prot_len} aa)')
                 sns.despine(left=True)
                 plt.tight_layout()
                 st.pyplot(fig_prot)
-                st.caption("🔻 Approximate variant position (mock)")
             
             st.markdown("### Pathways")
             for p in g_data.get("pathways", []):
