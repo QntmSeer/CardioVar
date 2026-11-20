@@ -58,8 +58,7 @@ def load_background_distribution(gene_symbol: str) -> Optional[List[float]]:
 
 def compute_variant_impact(chrom, pos, ref, alt, assembly="GRCh38", window_size=100, force_live=False):
     """
-    Core logic for variant impact prediction.
-    Returns synthetic but realistic data structure.
+    Core logic for variant impact prediction using Enformer.
     
     Args:
         chrom: Chromosome (e.g., "chr22")
@@ -72,6 +71,7 @@ def compute_variant_impact(chrom, pos, ref, alt, assembly="GRCh38", window_size=
     
     Raises:
         ValueError: If assembly is not GRCh38
+        RuntimeError: If Enformer is unavailable or fails to produce a prediction
     """
     # Reset fallback flag at the start of a new computation
     reset_fallback_flag()
@@ -103,68 +103,43 @@ def compute_variant_impact(chrom, pos, ref, alt, assembly="GRCh38", window_size=
     }
     
     # Find gene symbol based on position
-    gene_symbol = "UNKNOWN"
+    gene_symbol = "UNANNOTATED"
     if chrom in gene_map:
         for start, end, gene in gene_map[chrom]:
             if start <= pos <= end:
                 gene_symbol = gene
                 break
     
-    # Fallback to chromosome-based if no match
-    if gene_symbol == "UNKNOWN":
-        gene_symbol = {"chr22": "MYH9", "chr1": "PCSK9", "chr2": "APOB", "chr3": "MYL3"}.get(chrom, "GENE_X")
-    
-    # 2. Variant Impact Curve
-    dl_result = None
+    # 2. Variant Impact Curve (Enformer required — no synthetic fallback)
     try:
         from enformer_wrapper import predict_variant_impact_dl
+    except ImportError as e:
+        raise RuntimeError(
+            "Enformer is not installed or could not be imported. "
+            "Install Enformer dependencies before running variant impact prediction."
+        ) from e
+
+    try:
         dl_result = predict_variant_impact_dl(chrom, pos, ref, alt)
-    except ImportError:
-        print(">> Enformer not available. Using heuristic fallback.")
     except Exception as e:
-        print(f">> Enformer failed ({e}). Using heuristic fallback.")
+        raise RuntimeError(
+            f"Enformer prediction failed for {chrom}:{pos}:{ref}>{alt}: {e}"
+        ) from e
+
+    if not dl_result or "raw_delta" not in dl_result or "center_idx" not in dl_result:
+        raise RuntimeError(
+            f"Enformer returned no valid prediction for {chrom}:{pos}:{ref}>{alt}."
+        )
 
     x = np.arange(-window_size, window_size + 1)
 
-    if dl_result:
-        raw_profile = dl_result["raw_delta"]
-        center = dl_result["center_idx"]
-        # Extract ±5 Enformer bins (128 bp each) around the variant centre
-        bin_subset = raw_profile[center-5:center+6]
-        bin_x = np.arange(-5, 6) * 128
-        from scipy.interpolate import interp1d
-        signal = interp1d(bin_x, bin_subset, kind='cubic', fill_value="extrapolate")(x)
-        signal = signal * 50.0
-        np.random.seed(pos % 10000)  # deterministic per variant
-        delta_rna = signal + np.random.normal(0, 0.05, len(x))
-        
-    else:
-        # Heuristic fallback — deterministic per variant position
-        np.random.seed(pos % 10000)
-        is_transition = (ref in ['A','G'] and alt in ['A','G']) or (ref in ['C','T'] and alt in ['C','T'])
-        is_splice = (pos % 100) < 10
-        is_regulatory = (pos % 50) < 5
-        direction = 1 if (pos % 2 == 0) else -1
-
-        if is_splice:
-            base = np.random.uniform(3.5, 5.5)
-            signal = base * direction * np.exp(-0.15 * x**2)
-            signal[x > 0] *= 0.7
-        elif is_regulatory:
-            base = np.random.uniform(2.0, 4.0)
-            signal = base * direction * np.exp(-0.01 * x**2)
-            signal += 0.3 * base * direction * np.exp(-0.02 * (x - 30)**2)
-        else:
-            base = np.random.uniform(1.5, 3.5)
-            signal = base * direction * np.exp(-0.04 * x**2)
-            if is_transition:
-                signal *= 0.85
-
-        noise_level = 0.2 + 0.1 * np.abs(x) / window_size
-        noise = np.random.normal(0, noise_level, len(x))
-        outlier_mask = np.random.random(len(x)) < 0.05
-        noise[outlier_mask] += np.random.normal(0, 0.8, np.sum(outlier_mask))
-        delta_rna = np.clip(signal + noise, -8, 8)
+    raw_profile = dl_result["raw_delta"]
+    center = dl_result["center_idx"]
+    # Extract ±5 Enformer bins (128 bp each) around the variant centre
+    bin_subset = raw_profile[center-5:center+6]
+    bin_x = np.arange(-5, 6) * 128
+    from scipy.interpolate import interp1d
+    delta_rna = interp1d(bin_x, bin_subset, kind='cubic', fill_value="extrapolate")(x)
     
     # 3. Calculate Metrics
     max_idx = np.argmax(np.abs(delta_rna))
@@ -204,9 +179,10 @@ def compute_variant_impact(chrom, pos, ref, alt, assembly="GRCh38", window_size=
     
     # 6. Tissue Effects — GTEx v8 TPM scaled by Enformer |delta|
     tissue_effects = []
+    tissue_effects_source = "GTEx v8 API"
     try:
         from api_integrations import fetch_gtex_expression
-        gtex_data = fetch_gtex_expression(gene_symbol) if gene_symbol != "UNKNOWN" else None
+        gtex_data = fetch_gtex_expression(gene_symbol) if gene_symbol != "UNANNOTATED" else None
         if not gtex_data:
             raise ValueError("No data returned")
         max_tpm = max(t.get("tpm", 0) for t in gtex_data) or 1.0
@@ -215,7 +191,6 @@ def compute_variant_impact(chrom, pos, ref, alt, assembly="GRCh38", window_size=
             tissue_effects.append({"tissue": t["tissue"],
                                    "delta": round(abs(max_delta) * (tpm / max_tpm), 4),
                                    "tpm":   tpm})
-        data_sources["tissue_effects"] = "GTEx v8 API"
     except Exception as e:
         print(f">> GTEx unavailable ({e}), using cardiac-weighted fallback")
         CARDIAC = {"Heart Left Ventricle", "Heart Atrial Appendage",
@@ -227,10 +202,10 @@ def compute_variant_impact(chrom, pos, ref, alt, assembly="GRCh38", window_size=
         for t in TISSUES:
             w = np.random.uniform(0.7, 1.2) if t in CARDIAC else np.random.uniform(0.05, 0.35)
             tissue_effects.append({"tissue": t, "delta": round(abs(max_delta) * w, 4)})
-        data_sources["tissue_effects"] = "GTEx unavailable — cardiac-weighted fallback"
+        tissue_effects_source = "GTEx unavailable — cardiac-weighted fallback"
     
     # 7. Background Distribution (pre-computed per gene, or synthetic fallback)
-    background_deltas = load_background_distribution(gene_symbol)
+    background_deltas = load_background_distribution(gene_symbol) if gene_symbol != "UNANNOTATED" else None
     if background_deltas is None:
         np.random.seed(pos % 100)
         background_deltas = np.abs(np.random.normal(0, 1.5, 200)).tolist()
@@ -241,17 +216,17 @@ def compute_variant_impact(chrom, pos, ref, alt, assembly="GRCh38", window_size=
     
     # Track data sources for transparency
     data_sources = {
-        "variant_impact": "Enformer (Deep Learning)" if dl_result else "Heuristic (Simulation)",
+        "variant_impact": "Enformer (Deep Learning)",
         "gnomad_frequency": "gnomAD v4 API" if freq and freq > 0 else "Not found in gnomAD",
         "gene_structure": "Ensembl API" if exons else "Local fallback",
         "conservation": "UCSC PhyloP API" if used_real_cons else "Synthetic fallback",
-        "gene_symbol": "Ensembl API" if gene_symbol else "Heuristic",
+        "gene_symbol": "Position-mapped (GRCh38)" if gene_symbol != "UNANNOTATED" else "Unannotated",
         "background_distribution": "Simulated (for percentile calculation)",
-        "tissue_effects": "Simulated (tissue-specific predictions)"
+        "tissue_effects": tissue_effects_source
     }
     
     # 8. Fetch Gene Info
-    gene_info = fetch_ensembl_gene(gene_symbol)
+    gene_info = fetch_ensembl_gene(gene_symbol) if gene_symbol != "UNANNOTATED" else None
     
     # 9. Calculate Statistics
     # Z-Score
@@ -267,7 +242,6 @@ def compute_variant_impact(chrom, pos, ref, alt, assembly="GRCh38", window_size=
         
     # Confidence: penalise each synthetic data source
     confidence = 100.0
-    if not dl_result:                                                   confidence -= 50.0
     if "synthetic" in data_sources["conservation"].lower():            confidence -= 20.0
     if "synthetic" in data_sources["background_distribution"].lower(): confidence -= 10.0
     if not gene_info:                                                   confidence -= 10.0
@@ -284,7 +258,7 @@ def compute_variant_impact(chrom, pos, ref, alt, assembly="GRCh38", window_size=
             "z_score": round(z_score, 2),
             "confidence": round(confidence, 1),
             "fallback_used": api_integrations.fallback_used,
-            "model_used": "Enformer (Deep Learning)" if dl_result else "Heuristic (Simulation)"
+            "model_used": "Enformer (Deep Learning)"
         },
         "curve": {
             "x": x.tolist(),
